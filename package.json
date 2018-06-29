@@ -1,0 +1,11 @@
+{
+  "name": "ws-gate",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./src/Main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "golos.io",
+  "license": "GPL-3.0"
+}
