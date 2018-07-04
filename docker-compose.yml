@@ -21,7 +21,12 @@ services:
       dockerfile: Dockerfile
     networks:
       - services-tier
+    ports:
+      - $GATE_LISTEN_PORT:$GATE_LISTEN_PORT
+      - $FRONTEND_GATE_LISTEN_PORT:$FRONTEND_GATE_LISTEN_PORT
     environment:
+      - GATE_LISTEN_PORT
+      - FRONTEND_GATE_LISTEN_PORT
       - DAY_START
       - MONGO_CONNECT_STRING
       - BLOCKCHAIN_SUBSCRIBE_TIMEOUT
