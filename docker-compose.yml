@@ -5,13 +5,14 @@ services:
     image: mongo
     restart: always
     volumes:
-      - ./db:/data/db
+      - mongodb_vol:/data/db
     ports:
-      - 27017:27017
+      - 127.0.0.1:27017:27017
     networks:
       - services-tier
-  node:
-    container_name: node
+
+  node-bulgakov:
+    container_name: node-bulgakov
     restart: always
     depends_on:
       - mongo
@@ -27,6 +28,9 @@ services:
       - BLOCKCHAIN_NODE_ADDRESS
       - METRICS_HOST
       - METRICS_PORT
+
+volumes:
+  mongodb_vol:
 
 networks:
   services-tier:
