@@ -1,3 +1,7 @@
+const core = require('griboyedov');
+const BasicService = core.service.Basic;
+const stats = core.Stats.client;
+const logger = core.Logger;
 // TODO -
 
 class Main extends BasicService {
@@ -10,19 +14,19 @@ class Main extends BasicService {
 
     async start() {
         await this.startNested();
-        stats.increment("main_service_start");
+        stats.increment('main_service_start');
     }
 
     async stop() {
         await this.stopNested();
-        stats.increment("main_service_stop");
+        stats.increment('main_service_stop');
         process.exit(0);
     }
 }
 
 new Main().start().then(
     () => {
-        logger.info("Main service started!");
+        logger.info('Main service started!');
     },
     error => {
         logger.error(`Main service failed - ${error}`);

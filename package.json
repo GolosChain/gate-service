@@ -1,11 +1,20 @@
 {
-  "name": "ws-gate",
-  "version": "0.0.1",
-  "description": "",
-  "main": "./src/Main.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "golos.io",
-  "license": "GPL-3.0"
+    "name": "bulgakov",
+    "version": "0.0.1",
+    "description": "",
+    "main": "./src/Main.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "prettier": {
+        "singleQuote": true,
+        "tabWidth": 4,
+        "semi": true,
+        "trailingComma": "es5"
+    },
+    "author": "golos.io",
+    "license": "GPL-3.0",
+    "dependencies": {
+        "griboyedov": "git+https://github.com/GolosChain/griboyedov.git"
+    }
 }
