@@ -1,14 +1,14 @@
 const core = require('griboyedov');
-const BasicService = core.service.Basic;
 const stats = core.Stats.client;
 const logger = core.Logger;
-// TODO -
+const BasicService = core.service.Basic;
+const Broker = require('./service/Broker');
 
 class Main extends BasicService {
     constructor() {
         super();
 
-        // TODO -
+        this.addNested(new Broker());
         this.stopOnExit();
     }
 
