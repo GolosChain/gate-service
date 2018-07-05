@@ -6,22 +6,22 @@ const env = require('../Env');
 const BasicService = core.service.Basic;
 
 class FrontendGate extends BasicService {
-    constructor(routesConfig) {
+    constructor() {
         super();
 
         this._server = null;
         this._deadMapping = new Map();
         this._brokenDropperIntervalId = null;
-        this._router = this._makeRouter(routesConfig);
     }
 
-    async start() {
+    async start(callback) {
         logger.info('Make Gate server...');
 
         const timer = new Date();
         const port = env.FRONTEND_GATE_PORT;
 
         this._server = new WebSocket.Server({ port });
+        this._callback = callback;
 
         this._server.on('connection', this._handleConnection.bind(this));
         this._makeBrokenDropper();
@@ -52,10 +52,13 @@ class FrontendGate extends BasicService {
 
         socket.on('close', () => {
             logger.log(`Gate server connection close - ${from}`);
+            this._deadMapping.delete(socket);
         });
 
         socket.on('error', error => {
-            // TODO -
+            logger.log(`Frontend Gate client error - ${error}`);
+            socket.terminate();
+            this._deadMapping.delete(socket);
         });
 
         socket.on('pong', () => {
@@ -84,50 +87,30 @@ class FrontendGate extends BasicService {
             for (let socket of this._server.clients) {
                 if (map.get(socket) === true) {
                     socket.terminate();
+                    this._deadMapping.delete(socket);
                 } else {
                     map.set(socket, true);
                     socket.ping(this._noop);
                 }
             }
-        }, env.GATE_SERVER_TIMEOUT);
+        }, env.FRONTEND_GATE_TIMEOUT_FOR_CLIENT);
     }
 
     _handleMessage(socket, message, from) {
-        const data = this._deserializeMessage(message);
+        const requestData = this._deserializeMessage(message);
 
-        if (data.error) {
-            this._handleConnectionError(socket, data, from);
+        if (requestData.error) {
+            this._handleConnectionError(socket, requestData, from);
         } else {
-            this._routeMessage(socket, data);
+            this._callback(requestData, responseData => {
+                socket.send(this._serializeMessage(responseData));
+            });
         }
     }
 
     _handleConnectionError(socket, data, from) {
         stats.increment('gate_server_connection_error');
         logger.error(`Gate server connection {${from}} error - ${data.error}`);
-    }
-
-    _makeRouter(config) {
-        return (data, responseSender) => {
-            const routes = config.routes;
-            const scope = config.scope || null;
-            const target = data.target;
-
-            if (routes[target]) {
-                routes[target]
-                    .call(scope, data)
-                    .then(responseSender)
-                    .catch(responseSender);
-            } else {
-                responseSender({ error: 'Route not found' });
-            }
-        };
-    }
-
-    _routeMessage(socket, requestData) {
-        this._router(requestData, responseData => {
-            socket.send(this._serializeMessage(responseData));
-        });
     }
 
     _serializeMessage(data) {
@@ -156,7 +139,7 @@ class FrontendGate extends BasicService {
         return data;
     }
 
-    static _noop() {
+    _noop() {
         // just empty function
     }
 }
