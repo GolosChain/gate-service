@@ -9,7 +9,9 @@ class FrontendGate extends BasicService {
     constructor() {
         super();
 
+        this._lastId = 0;
         this._server = null;
+        this._idMapping = new Map();
         this._deadMapping = new Map();
         this._brokenDropperIntervalId = null;
     }
@@ -18,7 +20,7 @@ class FrontendGate extends BasicService {
         logger.info('Make Gate server...');
 
         const timer = new Date();
-        const port = env.FRONTEND_GATE_PORT;
+        const port = env.FRONTEND_GATE_LISTEN_PORT;
 
         this._server = new WebSocket.Server({ port });
         this._callback = callback;
@@ -40,29 +42,42 @@ class FrontendGate extends BasicService {
 
     _handleConnection(socket, request) {
         const from = this._getRequestAddressLogString(request);
+        const uuidMap = this._idMapping;
+        const deadMap = this._deadMapping;
 
         socket.on('message', message => {
-            this._deadMapping.set(socket, false);
+            deadMap.set(socket, false);
             this._handleMessage(socket, message, from);
         });
 
         socket.on('open', () => {
             logger.log(`Gate server connection open - ${from}`);
+
+            uuidMap.set(socket, ++this._lastId);
+            deadMap.set(socket, false);
+            this._notifyCallback(socket, 'open');
         });
 
         socket.on('close', () => {
             logger.log(`Gate server connection close - ${from}`);
-            this._deadMapping.delete(socket);
+
+            uuidMap.delete(socket);
+            deadMap.delete(socket);
+            this._notifyCallback(socket, 'close');
         });
 
         socket.on('error', error => {
             logger.log(`Frontend Gate client error - ${error}`);
-            socket.terminate();
-            this._deadMapping.delete(socket);
+
+            this._safeTerminateSocket(socket);
+
+            uuidMap.delete(socket);
+            deadMap.delete(socket);
+            this._notifyCallback(socket, 'error');
         });
 
         socket.on('pong', () => {
-            this._deadMapping.set(socket, false);
+            deadMap.set(socket, false);
         });
     }
 
@@ -81,15 +96,15 @@ class FrontendGate extends BasicService {
     }
 
     _makeBrokenDropper() {
-        const map = this._deadMapping;
+        const deadMap = this._deadMapping;
 
         this._brokenDropperIntervalId = setInterval(() => {
-            for (let socket of this._server.clients) {
-                if (map.get(socket) === true) {
-                    socket.terminate();
-                    this._deadMapping.delete(socket);
+            for (let socket of deadMap.keys()) {
+                if (deadMap.get(socket) === true) {
+                    this._safeTerminateSocket(socket);
+                    deadMap.delete(socket);
                 } else {
-                    map.set(socket, true);
+                    deadMap.set(socket, true);
                     socket.ping(this._noop);
                 }
             }
@@ -102,9 +117,27 @@ class FrontendGate extends BasicService {
         if (requestData.error) {
             this._handleConnectionError(socket, requestData, from);
         } else {
-            this._callback(requestData, responseData => {
+            this._notifyCallback(socket, requestData);
+        }
+    }
+
+    _notifyCallback(socket, requestData) {
+        const id = this._idMapping(socket);
+
+        if (typeof requestData === 'string') {
+            this._callback(id, requestData);
+        } else {
+            this._callback(id, requestData, responseData => {
                 socket.send(this._serializeMessage(responseData));
             });
+        }
+    }
+
+    _safeTerminateSocket(socket) {
+        try {
+            socket.terminate();
+        } catch (error) {
+            // already terminated
         }
     }
 
