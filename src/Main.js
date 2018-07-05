@@ -3,12 +3,13 @@ const stats = core.Stats.client;
 const logger = core.Logger;
 const BasicService = core.service.Basic;
 const Broker = require('./service/Broker');
+const FrontendGate = require('./service/FrontendGate');
 
 class Main extends BasicService {
     constructor() {
         super();
 
-        this.addNested(new Broker());
+        this.addNested(new Broker(FrontendGate));
         this.stopOnExit();
     }
 

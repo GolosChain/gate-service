@@ -5,6 +5,8 @@ const stats = core.Stats.client;
 const env = require('../Env');
 const BasicService = core.service.Basic;
 
+const E500 = { error: { code: 500, message: 'Internal server error' } };
+
 class FrontendGate extends BasicService {
     constructor() {
         super();
@@ -17,7 +19,7 @@ class FrontendGate extends BasicService {
     }
 
     async start(callback) {
-        logger.info('Make Gate server...');
+        logger.info('Make Frontend Gate server...');
 
         const timer = new Date();
         const port = env.FRONTEND_GATE_LISTEN_PORT;
@@ -29,7 +31,7 @@ class FrontendGate extends BasicService {
         this._makeBrokenDropper();
 
         stats.timing('make_gate_server', new Date() - timer);
-        logger.info(`Gate server listening at ${port}`);
+        logger.info(`Frontend Gate listening at ${port}`);
     }
 
     async stop() {
@@ -45,21 +47,19 @@ class FrontendGate extends BasicService {
         const uuidMap = this._idMapping;
         const deadMap = this._deadMapping;
 
+        logger.log(`Frontend Gate connection open - ${from}`);
+
+        uuidMap.set(socket, ++this._lastId);
+        deadMap.set(socket, false);
+        this._notifyCallback(socket, 'open');
+
         socket.on('message', message => {
             deadMap.set(socket, false);
             this._handleMessage(socket, message, from);
         });
 
-        socket.on('open', () => {
-            logger.log(`Gate server connection open - ${from}`);
-
-            uuidMap.set(socket, ++this._lastId);
-            deadMap.set(socket, false);
-            this._notifyCallback(socket, 'open');
-        });
-
         socket.on('close', () => {
-            logger.log(`Gate server connection close - ${from}`);
+            logger.log(`Frontend Gate connection close - ${from}`);
 
             uuidMap.delete(socket);
             deadMap.delete(socket);
@@ -67,7 +67,7 @@ class FrontendGate extends BasicService {
         });
 
         socket.on('error', error => {
-            logger.log(`Frontend Gate client error - ${error}`);
+            logger.log(`Frontend Gate client connection error - ${error}`);
 
             this._safeTerminateSocket(socket);
 
@@ -122,15 +122,14 @@ class FrontendGate extends BasicService {
     }
 
     _notifyCallback(socket, requestData) {
-        const id = this._idMapping(socket);
+        const id = this._idMapping.get(socket);
 
-        if (typeof requestData === 'string') {
-            this._callback(id, requestData);
-        } else {
-            this._callback(id, requestData, responseData => {
-                socket.send(this._serializeMessage(responseData));
-            });
-        }
+        this._callback(id, requestData, responseData => {
+            socket.send(this._serializeMessage(responseData));
+        }).catch(() => {
+            socket.send(this._serializeMessage(E500));
+            stats.increment('frontend_gate_internal_server_error');
+        });
     }
 
     _safeTerminateSocket(socket) {
@@ -142,8 +141,10 @@ class FrontendGate extends BasicService {
     }
 
     _handleConnectionError(socket, data, from) {
-        stats.increment('gate_server_connection_error');
-        logger.error(`Gate server connection {${from}} error - ${data.error}`);
+        stats.increment('frontend_gate_connection_error');
+        logger.error(
+            `Frontend Gate connection error [${from}] - ${data.error}`
+        );
     }
 
     _serializeMessage(data) {
@@ -152,9 +153,9 @@ class FrontendGate extends BasicService {
         try {
             result = JSON.stringify(data);
         } catch (error) {
-            stats.increment('gate_serialization_error');
-            logger.error(`Gate serialization error - ${error}`);
-            process.exit(1);
+            stats.increment('frontend_gate_serialization_error');
+            logger.error(`Frontend Gate serialization error - ${error}`);
+            result = JSON.stringify(E500);
         }
 
         return result;

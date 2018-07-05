@@ -16,6 +16,7 @@
     "license": "GPL-3.0",
     "dependencies": {
         "griboyedov": "git+https://github.com/GolosChain/griboyedov.git",
+        "jayson": "^2.0.6",
         "ws": "^5.2.1"
     }
 }
