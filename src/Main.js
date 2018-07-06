@@ -1,6 +1,7 @@
 const core = require('griboyedov');
 const stats = core.Stats.client;
 const logger = core.Logger;
+const InnerGate = core.service.Gate;
 const BasicService = core.service.Basic;
 const Broker = require('./service/Broker');
 const FrontendGate = require('./service/FrontendGate');
@@ -9,7 +10,7 @@ class Main extends BasicService {
     constructor() {
         super();
 
-        this.addNested(new Broker(FrontendGate));
+        this.addNested(new Broker(InnerGate, FrontendGate));
         this.stopOnExit();
     }
 
