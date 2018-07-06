@@ -15,8 +15,11 @@
     "author": "golos.io",
     "license": "GPL-3.0",
     "dependencies": {
+        "golos-js": "^0.7.2",
         "griboyedov": "git+https://github.com/GolosChain/griboyedov.git",
         "jayson": "^2.0.6",
+        "ramda": "^0.25.0",
+        "randomstring": "^1.1.5",
         "ws": "^5.2.1"
     }
 }

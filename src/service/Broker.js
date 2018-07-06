@@ -1,4 +1,8 @@
+const R = require('ramda');
 const jayson = require('jayson');
+const random = require('randomstring');
+const golos = require('golos-js');
+const errors = require('../Error');
 const core = require('griboyedov');
 const logger = core.Logger;
 const stats = core.Stats.client;
@@ -14,8 +18,8 @@ class Broker extends BasicService {
 
     async start() {
         await this._frontendGate.start(async (id, data, send) => {
-            if (typeof data === 'string') {
-                await this._handleFrontendEvent(id, data);
+            if (R.is(String, data)) {
+                await this._handleFrontendEvent(id, data, send);
             } else {
                 await this._handleRequest(id, data, send);
             }
@@ -43,16 +47,26 @@ class Broker extends BasicService {
         });
     }
 
-    async _handleFrontendEvent(id, data) {
-        switch (data) {
+    async _handleFrontendEvent(id, event, send) {
+        const userMap = this._userMapping;
+
+        switch (event) {
             case 'open':
-                // do nothing
+                const payload = random.generate();
+                const request = jayson.utils.request('sign', [payload]);
+
+                userMap.set(id, null);
+                send(request);
                 break;
+
             case 'close':
-                // TODO handle close
+                userMap.delete(id);
+                // TODO notify
                 break;
+
             case 'error':
-                // TODO handle error
+                userMap.delete(id);
+                // TODO notify
                 break;
         }
     }
@@ -65,11 +79,33 @@ class Broker extends BasicService {
             return;
         }
 
-        if (this._userMapping.get(id)) {
-            // TODO handle request
+        if (this._userMapping.get(id) === null) {
+            await this._authClient(id, data, send);
         } else {
-            // TODO handle auth
+            // TODO handle request
         }
+    }
+
+    async _authClient(id, data, send) {
+        if (!this._validateClientAuth(data)) {
+            send(errors.E406);
+            return;
+        }
+
+        const { user, sign } = data.params;
+        const userData = await golos.api.getAccountsAsync([user]);
+
+        // TODO -
+    }
+
+    async _validateClientAuth(data) {
+        const params = data.params;
+
+        if (!params) {
+            return false;
+        }
+
+        return R.all(R.is(String), [params.user, params.sign]);
     }
 }
 

@@ -4,8 +4,7 @@ const logger = core.Logger;
 const stats = core.Stats.client;
 const env = require('../Env');
 const BasicService = core.service.Basic;
-
-const E500 = { error: { code: 500, message: 'Internal server error' } };
+const errors = require('../Error');
 
 class FrontendGate extends BasicService {
     constructor() {
@@ -126,8 +125,9 @@ class FrontendGate extends BasicService {
 
         this._callback(id, requestData, responseData => {
             socket.send(this._serializeMessage(responseData));
-        }).catch(() => {
-            socket.send(this._serializeMessage(E500));
+        }).catch(error => {
+            logger.error(`Frontend Gate internal server error ${error}`);
+            socket.send(this._serializeMessage(errors.E500));
             stats.increment('frontend_gate_internal_server_error');
         });
     }
@@ -155,7 +155,7 @@ class FrontendGate extends BasicService {
         } catch (error) {
             stats.increment('frontend_gate_serialization_error');
             logger.error(`Frontend Gate serialization error - ${error}`);
-            result = JSON.stringify(E500);
+            result = JSON.stringify(errors.E500);
         }
 
         return result;
