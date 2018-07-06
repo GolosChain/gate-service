@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const uuid = require('uuid');
 const core = require('griboyedov');
 const logger = core.Logger;
 const stats = core.Stats.client;
@@ -10,7 +11,6 @@ class FrontendGate extends BasicService {
     constructor() {
         super();
 
-        this._lastId = 0;
         this._server = null;
         this._idMapping = new Map();
         this._deadMapping = new Map();
@@ -48,7 +48,7 @@ class FrontendGate extends BasicService {
 
         logger.log(`Frontend Gate connection open - ${from}`);
 
-        uuidMap.set(socket, ++this._lastId);
+        uuidMap.set(socket, uuid());
         deadMap.set(socket, false);
         this._notifyCallback(socket, 'open');
 
@@ -121,9 +121,9 @@ class FrontendGate extends BasicService {
     }
 
     _notifyCallback(socket, requestData) {
-        const id = this._idMapping.get(socket);
+        const uuid = this._idMapping.get(socket);
 
-        this._callback(id, requestData, responseData => {
+        this._callback(uuid, requestData, responseData => {
             socket.send(this._serializeMessage(responseData));
         }).catch(error => {
             logger.error(`Frontend Gate internal server error ${error}`);
