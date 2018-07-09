@@ -12,8 +12,8 @@ class FrontendGate extends BasicService {
         super();
 
         this._server = null;
-        this._idMapping = new Map();
-        this._deadMapping = new Map();
+        this._pipeMapping = new Map(); // socket -> uuid
+        this._deadMapping = new Map(); // socket -> boolean
         this._brokenDropperIntervalId = null;
     }
 
@@ -43,12 +43,12 @@ class FrontendGate extends BasicService {
 
     _handleConnection(socket, request) {
         const from = this._getRequestAddressLogString(request);
-        const uuidMap = this._idMapping;
+        const pipeMap = this._pipeMapping;
         const deadMap = this._deadMapping;
 
         logger.log(`Frontend Gate connection open - ${from}`);
 
-        uuidMap.set(socket, uuid());
+        pipeMap.set(socket, uuid());
         deadMap.set(socket, false);
         this._notifyCallback(socket, 'open');
 
@@ -60,7 +60,7 @@ class FrontendGate extends BasicService {
         socket.on('close', () => {
             logger.log(`Frontend Gate connection close - ${from}`);
 
-            uuidMap.delete(socket);
+            pipeMap.delete(socket);
             deadMap.delete(socket);
             this._notifyCallback(socket, 'close');
         });
@@ -70,7 +70,7 @@ class FrontendGate extends BasicService {
 
             this._safeTerminateSocket(socket);
 
-            uuidMap.delete(socket);
+            pipeMap.delete(socket);
             deadMap.delete(socket);
             this._notifyCallback(socket, 'error');
         });
@@ -121,9 +121,9 @@ class FrontendGate extends BasicService {
     }
 
     _notifyCallback(socket, requestData) {
-        const uuid = this._idMapping.get(socket);
+        const pipe = this._pipeMapping.get(socket);
 
-        this._callback(uuid, requestData, responseData => {
+        this._callback(pipe, requestData, responseData => {
             socket.send(this._serializeMessage(responseData));
         }).catch(error => {
             logger.error(`Frontend Gate internal server error ${error}`);

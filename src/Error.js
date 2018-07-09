@@ -3,6 +3,7 @@ const jayson = require('jayson');
 module.exports = {
     E400: [400, 'Bad Request'],
     E401: [401, 'Unauthorized'],
+    E403: [403, 'Forbidden'],
     E404: [404, 'Not Found'],
     E406: [406, 'Not Acceptable'],
     E500: [500, 'Internal Server Error'],
