@@ -16,6 +16,7 @@ class Broker extends BasicService {
         this._innerGate = new InnerGate();
         this._frontendGate = new FrontendGate();
         this._userMapping = new Map(); // channelId -> user
+        this._pipeMapping = new Map(); // channelId -> pipe
         this._innerServices = null; // Set
     }
 
@@ -33,11 +34,11 @@ class Broker extends BasicService {
             requiredClients,
         });
 
-        await front.start(async (channelId, data, send) => {
+        await front.start(async (channelId, data, pipe) => {
             if (R.is(String, data)) {
-                await this._handleFrontendEvent(channelId, data, send);
+                await this._handleFrontendEvent(channelId, data, pipe);
             } else {
-                await this._handleRequest(channelId, data, send);
+                await this._handleRequest(channelId, data, pipe);
             }
         });
 
@@ -48,7 +49,7 @@ class Broker extends BasicService {
         await this.stopNested();
     }
 
-    async _handleFrontendEvent(channelId, event, send) {
+    async _handleFrontendEvent(channelId, event, pipe) {
         const userMap = this._userMapping;
 
         switch (event) {
@@ -56,7 +57,7 @@ class Broker extends BasicService {
                 const request = this._makeAuthRequestObject();
 
                 userMap.set(channelId, null);
-                send(request);
+                pipe(request);
                 break;
 
             case 'close':
@@ -71,18 +72,18 @@ class Broker extends BasicService {
         }
     }
 
-    async _handleRequest(channelId, data, send) {
+    async _handleRequest(channelId, data, pipe) {
         const parsedData = await this._parseRequest(data);
 
         if (parsedData.error) {
-            send(parsedData);
+            pipe(parsedData);
             return;
         }
 
         if (this._userMapping.get(channelId) === null) {
-            await this._authClient(channelId, data, send);
+            await this._authClient(channelId, data, pipe);
         } else {
-            await this._handleClientRequest(channelId, data, send);
+            await this._handleClientRequest(channelId, data, pipe);
         }
     }
 
@@ -101,11 +102,11 @@ class Broker extends BasicService {
         });
     }
 
-    async _authClient(channelId, data, send) {
+    async _authClient(channelId, data, pipe) {
         const timer = new Date();
 
         if (!this._validateClientAuth(data)) {
-            send(errors.E406);
+            pipe(errors.E406);
             return;
         }
 
@@ -114,12 +115,13 @@ class Broker extends BasicService {
         const verified = await golos.api.verifyAuthorityAsync(signObject);
 
         if (verified) {
-            send(this._makeResponseObject(['Passed'], data.id));
+            pipe(this._makeResponseObject(['Passed'], data.id));
 
             this._userMapping.set(channelId, user);
+            this._pipeMapping.set(channelId, pipe);
             await this._notifyAboutUserOnline(user, true);
         } else {
-            send(errors.E403);
+            pipe(errors.E403);
         }
 
         stats.timing('user_auth', new Date() - timer);
@@ -156,11 +158,11 @@ class Broker extends BasicService {
         };
     }
 
-    async _handleClientRequest(channelId, data, send) {
+    async _handleClientRequest(channelId, data, pipe) {
         const serviceName = this._getTargetServiceName(data);
 
         if (!serviceName) {
-            send(errors.E404);
+            pipe(errors.E404);
             return;
         }
 
@@ -174,14 +176,14 @@ class Broker extends BasicService {
                 translate
             );
 
-            send(response);
+            pipe(response);
         } catch (error) {
             stats.increment(`pass_data_to_${serviceName}_error`);
             logger.error(
                 `Fail to pass data from client to service - [${serviceName}, ${method}, ${data}] - ${error}`
             );
 
-            send(errors.E503);
+            pipe(errors.E503);
         }
     }
 
@@ -214,31 +216,34 @@ class Broker extends BasicService {
             _frontendGate: true,
             channelId,
             requestId: data.id,
-            user: this._userMapping(channelId),
+            user: this._userMapping.get(channelId),
             params: data.params,
         };
     }
 
-    // TODO -
     async _transferToClient(data) {
-        const { id, uuid, user, error, result } = data;
-        const userMap = this._userMapping;
-        const pipeMap = this._pipeMaping;
+        const { channelId, requestId, error, result } = data;
+        const pipe = this._pipeMapping.get(channelId);
 
-        if (!this._userMapping.has(user)) {
-            return errors.E404;
+        if (!pipe) {
+            throw errors.E404.error;
         }
 
-        const pipe = pipeMap.get(userMap.get(user));
-        let response;
+        try {
+            let response;
 
-        if (error) {
-            response = this._makeResponseErrorObject(error);
-        } else {
-            response = this._makeResponseObject(result);
+            if (error) {
+                response = this._makeResponseErrorObject(error);
+            } else {
+                response = this._makeResponseObject(result, requestId);
+            }
+
+            pipe(response);
+        } catch (error) {
+            throw errors.E500.error;
         }
 
-        pipe(response);
+        return 'Ok';
     }
 
     async _notifyAboutUserOfflineBy(channelId) {
