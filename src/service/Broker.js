@@ -17,6 +17,7 @@ class Broker extends BasicService {
         this._frontendGate = new FrontendGate();
         this._userMapping = new Map(); // channelId -> user
         this._pipeMapping = new Map(); // channelId -> pipe
+        this._secretMapping = new Map(); // channelId -> secret
         this._innerServices = null; // Set
     }
 
@@ -51,23 +52,27 @@ class Broker extends BasicService {
 
     async _handleFrontendEvent(channelId, event, pipe) {
         const userMap = this._userMapping;
+        const pipeMap = this._pipeMapping;
+        const secretMap = this._secretMapping;
 
         switch (event) {
             case 'open':
-                const request = this._makeAuthRequestObject();
+                const secret = random.generate();
+                const request = this._makeAuthRequestObject(secret);
 
                 userMap.set(channelId, null);
+                secretMap.set(channelId, secret);
+
                 pipe(request);
                 break;
 
             case 'close':
-                await this._notifyAboutUserOfflineBy(channelId);
-                userMap.delete(channelId);
-                break;
-
             case 'error':
                 await this._notifyAboutUserOfflineBy(channelId);
+
                 userMap.delete(channelId);
+                pipeMap.delete(channelId);
+                secretMap.delete(channelId);
                 break;
         }
     }
@@ -111,18 +116,23 @@ class Broker extends BasicService {
         }
 
         const { user, sign } = data.params;
-        const signObject = this._makeUserFakeTransactionObject(user, sign);
-        const verified = await golos.api.verifyAuthorityAsync(signObject);
+        const secret = this._secretMapping.get(channelId);
+        const signObject = this._makeUserFakeTransactionObject(user, sign, secret);
 
-        if (verified) {
-            pipe(this._makeResponseObject(['Passed'], data.id));
-
-            this._userMapping.set(channelId, user);
-            this._pipeMapping.set(channelId, pipe);
-            await this._notifyAboutUserOnline(user, true);
-        } else {
+        try {
+            await golos.api.verifyAuthorityAsync(signObject);
+        } catch (error) {
             pipe(errors.E403);
+
+            stats.timing('user_failure_auth', new Date() - timer);
+            return;
         }
+
+        pipe(this._makeResponseObject(['Passed'], data.id));
+
+        this._userMapping.set(channelId, user);
+        this._pipeMapping.set(channelId, pipe);
+        await this._notifyAboutUserOnline(user, true);
 
         stats.timing('user_auth', new Date() - timer);
     }
@@ -137,7 +147,7 @@ class Broker extends BasicService {
         return R.all(R.is(String), [params.user, params.sign]);
     }
 
-    _makeUserFakeTransactionObject(user, sign) {
+    _makeUserFakeTransactionObject(user, sign, secret) {
         return {
             ref_block_num: 3367,
             ref_block_prefix: 879276768,
@@ -148,7 +158,7 @@ class Broker extends BasicService {
                     {
                         voter: user,
                         author: 'test',
-                        permlink: 'test',
+                        permlink: secret,
                         weight: 1,
                     },
                 ],
@@ -258,8 +268,8 @@ class Broker extends BasicService {
         // TODO add notify logic when make first two-way service
     }
 
-    _makeAuthRequestObject() {
-        return jayson.utils.request('sign', [random.generate()], null);
+    _makeAuthRequestObject(secret) {
+        return jayson.utils.request('sign', [secret], null);
     }
 
     _makeResponseObject(data, id = null) {
@@ -272,5 +282,3 @@ class Broker extends BasicService {
 }
 
 module.exports = Broker;
-
-
