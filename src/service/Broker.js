@@ -190,7 +190,7 @@ class Broker extends BasicService {
         } catch (error) {
             stats.increment(`pass_data_to_${serviceName}_error`);
             logger.error(
-                `Fail to pass data from client to service - [${serviceName}, ${method}, ${data}] - ${error}`
+                `Fail to pass data from client to service - [${serviceName}, ${method}] - ${error}`
             );
 
             pipe(errors.E503);
