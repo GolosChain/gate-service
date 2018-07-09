@@ -16,17 +16,21 @@ class Broker extends BasicService {
         this._innerGate = new InnerGate();
         this._frontendGate = new FrontendGate();
         this._userMapping = new Map(); // channelId -> user
+        this._innerServices = null; // Set
     }
 
     async start() {
         const inner = this._innerGate;
         const front = this._frontendGate;
+        const requiredClients = inner._makeDefaultRequiredClientsConfig(env);
+
+        this._innerServices = new Set(Object.keys(requiredClients));
 
         await inner.start({
             serverRoutes: {
                 transfer: this._transferToClient.bind(this),
             },
-            requiredClients: inner._makeDefaultRequiredClientsConfig(env),
+            requiredClients,
         });
 
         await front.start(async (channelId, data, send) => {
@@ -152,8 +156,67 @@ class Broker extends BasicService {
         };
     }
 
-    async _handleClientRequest(uuid, data, send) {
-        // TODO -
+    async _handleClientRequest(channelId, data, send) {
+        const serviceName = this._getTargetServiceName(data);
+
+        if (!serviceName) {
+            send(errors.E404);
+            return;
+        }
+
+        const method = this._normalizeMethodName(data);
+        const translate = this._makeTranslateToServiceData(channelId, data);
+
+        try {
+            const response = await this._innerGate.sendTo(
+                serviceName,
+                method,
+                translate
+            );
+
+            send(response);
+        } catch (error) {
+            stats.increment(`pass_data_to_${serviceName}_error`);
+            logger.error(
+                `Fail to pass data from client to service - [${serviceName}, ${method}, ${data}] - ${error}`
+            );
+
+            send(errors.E503);
+        }
+    }
+
+    _getTargetServiceName(data) {
+        let serviceName = null;
+        let path = data.method.split('.');
+
+        if (path.length < 2) {
+            return null;
+        }
+
+        serviceName = path[0];
+
+        if (this._innerServices.has(serviceName)) {
+            return serviceName;
+        } else {
+            return null;
+        }
+    }
+
+    _normalizeMethodName(data) {
+        return data.method
+            .split('.')
+            .slice(1)
+            .join();
+    }
+
+    _makeTranslateToServiceData(channelId, data) {
+        return {
+            _frontendGate: true,
+            channelId,
+            requestId: data.id,
+            user: this._userMapping(channelId),
+            params: data.params,
+        };
     }
 
     // TODO -
@@ -204,7 +267,5 @@ class Broker extends BasicService {
 }
 
 module.exports = Broker;
-
-const WebSocket = require('ws');
 
 

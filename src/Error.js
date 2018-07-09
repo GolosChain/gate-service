@@ -7,6 +7,7 @@ module.exports = {
     E404: [404, 'Not Found'],
     E406: [406, 'Not Acceptable'],
     E500: [500, 'Internal Server Error'],
+    E503: [503, 'Service Unavailable'],
 };
 
 function convertErrorToRPC() {
