@@ -3,13 +3,9 @@ services:
   node-bulgakov:
     container_name: node-bulgakov
     restart: always
-    depends_on:
-      - mongo
     build:
       context: .
       dockerfile: Dockerfile
-    networks:
-      - services-tier
     ports:
       - $GATE_LISTEN_PORT:$GATE_LISTEN_PORT
       - $FRONTEND_GATE_LISTEN_PORT:$FRONTEND_GATE_LISTEN_PORT
