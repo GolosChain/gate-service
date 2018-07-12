@@ -60,9 +60,9 @@ class FrontendGate extends BasicService {
         socket.on('close', () => {
             logger.log(`Frontend Gate connection close - ${from}`);
 
+            this._notifyCallback(socket, 'close');
             pipeMap.delete(socket);
             deadMap.delete(socket);
-            this._notifyCallback(socket, 'close');
         });
 
         socket.on('error', error => {
@@ -70,9 +70,9 @@ class FrontendGate extends BasicService {
 
             this._safeTerminateSocket(socket);
 
+            this._notifyCallback(socket, 'error');
             pipeMap.delete(socket);
             deadMap.delete(socket);
-            this._notifyCallback(socket, 'error');
         });
 
         socket.on('pong', () => {

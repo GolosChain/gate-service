@@ -117,7 +117,11 @@ class Broker extends BasicService {
 
         const { user, sign } = data.params;
         const secret = this._secretMapping.get(channelId);
-        const signObject = this._makeUserFakeTransactionObject(user, sign, secret);
+        const signObject = this._makeUserFakeTransactionObject(
+            user,
+            sign,
+            secret
+        );
 
         try {
             await golos.api.verifyAuthorityAsync(signObject);
@@ -132,7 +136,6 @@ class Broker extends BasicService {
 
         this._userMapping.set(channelId, user);
         this._pipeMapping.set(channelId, pipe);
-        await this._notifyAboutUserOnline(user, true);
 
         stats.timing('user_auth', new Date() - timer);
     }
@@ -259,13 +262,17 @@ class Broker extends BasicService {
     async _notifyAboutUserOfflineBy(channelId) {
         const user = this._userMapping.get(channelId);
 
-        if (user) {
-            await this._notifyAboutUserOnline(user, false);
-        }
-    }
+        console.log(channelId, user);
 
-    async _notifyAboutUserOnline(name, isOnline) {
-        // TODO add notify logic when make first two-way service
+        if (!user) {
+            return;
+        }
+
+        this._innerGate.sendTo('notify', 'unsubscribe', {
+            user,
+            channelId,
+            requestId: null,
+        });
     }
 
     _makeAuthRequestObject(secret) {
