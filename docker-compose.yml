@@ -1,16 +1,5 @@
 version: '3.6'
 services:
-  mongo:
-    container_name: mongo
-    image: mongo
-    restart: always
-    volumes:
-      - mongodb_vol:/data/db
-    ports:
-      - 127.0.0.1:27017:27017
-    networks:
-      - services-tier
-
   node-bulgakov:
     container_name: node-bulgakov
     restart: always
@@ -25,17 +14,11 @@ services:
       - $GATE_LISTEN_PORT:$GATE_LISTEN_PORT
       - $FRONTEND_GATE_LISTEN_PORT:$FRONTEND_GATE_LISTEN_PORT
     environment:
+      - NOTIFY_CONNECT_STRING
       - GATE_LISTEN_PORT
       - FRONTEND_GATE_LISTEN_PORT
       - DAY_START
-      - MONGO_CONNECT_STRING
       - BLOCKCHAIN_SUBSCRIBE_TIMEOUT
       - BLOCKCHAIN_NODE_ADDRESS
       - METRICS_HOST
       - METRICS_PORT
-
-volumes:
-  mongodb_vol:
-
-networks:
-  services-tier:
