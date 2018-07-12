@@ -6,9 +6,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    networks:
+      - services-tier
     ports:
-      - $GATE_LISTEN_PORT:$GATE_LISTEN_PORT
-      - $FRONTEND_GATE_LISTEN_PORT:$FRONTEND_GATE_LISTEN_PORT
+      - 127.0.0.1:$GATE_LISTEN_PORT:$GATE_LISTEN_PORT
+      - 127.0.0.1:$FRONTEND_GATE_LISTEN_PORT:$FRONTEND_GATE_LISTEN_PORT
     environment:
       - NOTIFY_CONNECT_STRING
       - GATE_LISTEN_PORT
@@ -18,3 +20,6 @@ services:
       - BLOCKCHAIN_NODE_ADDRESS
       - METRICS_HOST
       - METRICS_PORT
+
+networks:
+  services-tier:

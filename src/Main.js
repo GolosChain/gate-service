@@ -3,6 +3,7 @@ const stats = core.Stats.client;
 const logger = core.Logger;
 const InnerGate = core.service.Gate;
 const BasicService = core.service.Basic;
+const env = require('./Env');
 const Broker = require('./service/Broker');
 const FrontendGate = require('./service/FrontendGate');
 
@@ -10,6 +11,7 @@ class Main extends BasicService {
     constructor() {
         super();
 
+        this.printEnvBasedConfig(env);
         this.addNested(new Broker(InnerGate, FrontendGate));
         this.stopOnExit();
     }
