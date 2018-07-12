@@ -24,7 +24,7 @@ class Broker extends BasicService {
     async start() {
         const inner = this._innerGate;
         const front = this._frontendGate;
-        const requiredClients = inner._makeDefaultRequiredClientsConfig(env);
+        const requiredClients = inner.makeDefaultRequiredClientsConfig();
 
         this._innerServices = new Set(Object.keys(requiredClients));
 
