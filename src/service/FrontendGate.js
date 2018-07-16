@@ -142,9 +142,7 @@ class FrontendGate extends BasicService {
 
     _handleConnectionError(socket, data, from) {
         stats.increment('frontend_gate_connection_error');
-        logger.error(
-            `Frontend Gate connection error [${from}] - ${data.error}`
-        );
+        logger.error(`Frontend Gate connection error [${from}] - ${data.error}`);
     }
 
     _serializeMessage(data) {

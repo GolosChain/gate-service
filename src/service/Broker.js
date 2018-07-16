@@ -118,11 +118,7 @@ class Broker extends BasicService {
 
         const { user, sign } = data.params;
         const secret = this._secretMapping.get(channelId);
-        const signObject = this._makeUserFakeTransactionObject(
-            user,
-            sign,
-            secret
-        );
+        const signObject = this._makeUserFakeTransactionObject(user, sign, secret);
 
         try {
             await golos.api.verifyAuthorityAsync(signObject);
@@ -184,11 +180,7 @@ class Broker extends BasicService {
         const translate = this._makeTranslateToServiceData(channelId, data);
 
         try {
-            const response = await this._innerGate.sendTo(
-                serviceName,
-                method,
-                translate
-            );
+            const response = await this._innerGate.sendTo(serviceName, method, translate);
 
             pipe(response);
         } catch (error) {

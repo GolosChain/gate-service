@@ -10,7 +10,8 @@
         "singleQuote": true,
         "tabWidth": 4,
         "semi": true,
-        "trailingComma": "es5"
+        "trailingComma": "es5",
+        "printWidth": 100
     },
     "author": "golos.io",
     "license": "GPL-3.0",
