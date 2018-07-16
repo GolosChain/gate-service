@@ -255,8 +255,6 @@ class Broker extends BasicService {
     async _notifyAboutUserOfflineBy(channelId) {
         const user = this._userMapping.get(channelId);
 
-        console.log(channelId, user);
-
         if (!user) {
             return;
         }
