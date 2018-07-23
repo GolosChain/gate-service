@@ -2,11 +2,10 @@ const R = require('ramda');
 const jayson = require('jayson');
 const random = require('randomstring');
 const golos = require('golos-js');
-const core = require('griboyedov');
+const core = require('gls-core-service');
 const logger = core.Logger;
 const stats = core.Stats.client;
 const BasicService = core.service.Basic;
-const serviceAliasEnv = core.ServiceAliasEnv;
 const env = require('../Env');
 const errors = require('../Error');
 
@@ -25,7 +24,10 @@ class Broker extends BasicService {
     async start() {
         const inner = this._innerGate;
         const front = this._frontendGate;
-        const requiredClients = serviceAliasEnv;
+        const requiredClients = {
+            notify: env.GLS_NOTIFY_CONNECT,
+            options: env.GLS_OPTIONS_CONNECT,
+        };
 
         this._innerServices = new Set(Object.keys(requiredClients));
 

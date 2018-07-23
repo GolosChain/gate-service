@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const uuid = require('uuid');
-const core = require('griboyedov');
+const core = require('gls-core-service');
 const logger = core.Logger;
 const stats = core.Stats.client;
 const env = require('../Env');
@@ -21,9 +21,10 @@ class FrontendGate extends BasicService {
         logger.info('Make Frontend Gate server...');
 
         const timer = new Date();
-        const port = env.FRONTEND_GATE_LISTEN_PORT;
+        const host = env.GLS_FRONTEND_GATE_HOST;
+        const port = env.GLS_FRONTEND_GATE_PORT;
 
-        this._server = new WebSocket.Server({ port });
+        this._server = new WebSocket.Server({ host, port });
         this._callback = callback;
 
         this._server.on('connection', this._handleConnection.bind(this));
@@ -107,7 +108,7 @@ class FrontendGate extends BasicService {
                     socket.ping(this._noop);
                 }
             }
-        }, env.FRONTEND_GATE_TIMEOUT_FOR_CLIENT);
+        }, env.GLS_FRONTEND_GATE_TIMEOUT_FOR_CLIENT);
     }
 
     _handleMessage(socket, message, from) {

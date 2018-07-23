@@ -1,4 +1,4 @@
-const core = require('griboyedov');
+const core = require('gls-core-service');
 const stats = core.Stats.client;
 const logger = core.Logger;
 const InnerGate = core.service.Gate;
