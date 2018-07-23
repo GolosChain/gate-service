@@ -1,7 +1,7 @@
 version: '3.6'
 services:
-  node-bulgakov:
-    container_name: node-bulgakov
+  node:
+    container_name: node
     restart: always
     build:
       context: .
@@ -9,15 +9,18 @@ services:
     networks:
       - services-tier
     ports:
-      - 127.0.0.1:$GATE_LISTEN_PORT:$GATE_LISTEN_PORT
-      - 127.0.0.1:$FRONTEND_GATE_LISTEN_PORT:$FRONTEND_GATE_LISTEN_PORT
+      - $GLS_GATE_HOST:$GLS_GATE_PORT:$GLS_GATE_PORT
+      - $GLS_METRICS_HOST:$GLS_METRICS_PORT:$GLS_METRICS_PORT
+      - $GLS_FRONTEND_GATE_HOST:$GLS_FRONTEND_GATE_PORT:$GLS_FRONTEND_GATE_PORT
     environment:
-      - NOTIFY_CONNECT_STRING
-      - GATE_LISTEN_PORT
-      - FRONTEND_GATE_LISTEN_PORT
-      - DAY_START
-      - METRICS_HOST
-      - METRICS_PORT
+      - GLS_NOTIFY_CONNECT
+      - GLS_FRONTEND_GATE_HOST
+      - GLS_FRONTEND_GATE_PORT
+      - GLS_DAY_START
+      - GLS_METRICS_HOST
+      - GLS_METRICS_PORT
+      - GLS_GATE_HOST
+      - GLS_GATE_PORT
 
 networks:
   services-tier:
