@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const uuid = require('uuid');
-const core = require('griboyedov');
+const core = require('gls-core-service');
 const logger = core.Logger;
 const stats = core.Stats.client;
 const env = require('../Env');

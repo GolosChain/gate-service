@@ -1,6 +1,6 @@
 {
-    "name": "bulgakov",
-    "version": "0.0.1",
+    "name": "gate-service",
+    "version": "0.1.0",
     "description": "",
     "main": "./src/Main.js",
     "scripts": {
@@ -16,8 +16,8 @@
     "author": "golos.io",
     "license": "GPL-3.0",
     "dependencies": {
+        "gls-core-service": "git+https://github.com/GolosChain/core-service.git",
         "golos-js": "^0.7.2",
-        "griboyedov": "git+https://github.com/GolosChain/griboyedov.git",
         "jayson": "^2.0.6",
         "ramda": "^0.25.0",
         "randomstring": "^1.1.5",
