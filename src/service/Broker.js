@@ -24,6 +24,10 @@ class Broker extends BasicService {
     async start() {
         const inner = this._innerGate;
         const front = this._frontendGate;
+        const requiredClients = {
+            notify: env.GLS_NOTIFY_CONNECT,
+            options: env.GLS_OPTIONS_CONNECT,
+        };
 
         this._innerServices = new Set(Object.keys(requiredClients));
 
@@ -31,10 +35,7 @@ class Broker extends BasicService {
             serverRoutes: {
                 transfer: this._transferToClient.bind(this),
             },
-            requiredClients: {
-                notify: env.GLS_NOTIFY_CONNECT,
-                options: env.GLS_OPTIONS_CONNECT,
-            },
+            requiredClients,
         });
 
         await front.start(async (channelId, data, pipe) => {
