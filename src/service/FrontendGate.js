@@ -124,10 +124,10 @@ class FrontendGate extends BasicService {
         const pipe = this._pipeMapping.get(socket);
 
         this._callback(pipe, requestData, responseData => {
-            socket.send(this._serializeMessage(responseData));
+            socket.send(this._serializeMessage(responseData, requestData.id));
         }).catch(error => {
             logger.error(`Frontend Gate internal server error ${error}`);
-            socket.send(this._serializeMessage(errors.E500));
+            socket.send(this._serializeMessage(errors.E500, requestData.id));
             stats.increment('frontend_gate_internal_server_error');
         });
     }
@@ -145,15 +145,27 @@ class FrontendGate extends BasicService {
         logger.error(`Frontend Gate connection error [${from}] - ${data.error}`);
     }
 
-    _serializeMessage(data) {
+    _serializeMessage(data, defaultId = null) {
         let result;
+
+        data = Object.assign({}, data);
+        data.id = data.id || defaultId;
+
+        if (data.id === null) {
+            delete data.id;
+        }
 
         try {
             result = JSON.stringify(data);
         } catch (error) {
             stats.increment('frontend_gate_serialization_error');
             logger.error(`Frontend Gate serialization error - ${error}`);
-            result = JSON.stringify(errors.E500);
+
+            let errorData = Object.assign({}, errors.E500);
+
+            errorData.id = defaultId;
+
+            result = JSON.stringify(errorData);
         }
 
         return result;

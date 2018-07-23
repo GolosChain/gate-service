@@ -69,7 +69,11 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
-                await this._notifyAboutUserOfflineBy(channelId);
+                try {
+                    await this._notifyAboutUserOfflineBy(channelId);
+                } catch (error) {
+                    // notify-service offline, do nothing
+                }
 
                 userMap.delete(channelId);
                 pipeMap.delete(channelId);
@@ -137,7 +141,7 @@ class Broker extends BasicService {
         stats.timing('user_auth', new Date() - timer);
     }
 
-    async _validateClientAuth(data) {
+    _validateClientAuth(data) {
         const params = data.params;
 
         if (!params) {
@@ -182,6 +186,8 @@ class Broker extends BasicService {
         try {
             const response = await this._innerGate.sendTo(serviceName, method, translate);
 
+            response.id = data.id;
+
             pipe(response);
         } catch (error) {
             stats.increment(`pass_data_to_${serviceName}_error`);
@@ -194,14 +200,13 @@ class Broker extends BasicService {
     }
 
     _getTargetServiceName(data) {
-        let serviceName = null;
         let path = data.method.split('.');
 
         if (path.length < 2) {
             return null;
         }
 
-        serviceName = path[0];
+        let serviceName = path[0];
 
         if (this._innerServices.has(serviceName)) {
             return serviceName;
@@ -259,7 +264,7 @@ class Broker extends BasicService {
             return;
         }
 
-        this._innerGate.sendTo('notify', 'unsubscribe', {
+        await this._innerGate.sendTo('notify', 'unsubscribe', {
             user,
             channelId,
             requestId: null,
