@@ -9,6 +9,14 @@ const BasicService = core.service.Basic;
 const env = require('../Env');
 const errors = require('../Error');
 
+const REQUEST_WHITE_LIST = new Set([
+    'notify.subscribe',
+    'notify.unsubscribe',
+    'notify.history',
+    'options.get',
+    'options.set',
+]);
+
 class Broker extends BasicService {
     constructor(InnerGate, FrontendGate) {
         super();
@@ -18,24 +26,20 @@ class Broker extends BasicService {
         this._userMapping = new Map(); // channelId -> user
         this._pipeMapping = new Map(); // channelId -> pipe
         this._secretMapping = new Map(); // channelId -> secret
-        this._innerServices = null; // Set
     }
 
     async start() {
         const inner = this._innerGate;
         const front = this._frontendGate;
-        const requiredClients = {
-            notify: env.GLS_NOTIFY_CONNECT,
-            options: env.GLS_OPTIONS_CONNECT,
-        };
-
-        this._innerServices = new Set(Object.keys(requiredClients));
 
         await inner.start({
             serverRoutes: {
                 transfer: this._transferToClient.bind(this),
             },
-            requiredClients,
+            requiredClients: {
+                notify: env.GLS_NOTIFY_CONNECT,
+                options: env.GLS_OPTIONS_CONNECT,
+            },
         });
 
         await front.start(async (channelId, data, pipe) => {
@@ -175,13 +179,12 @@ class Broker extends BasicService {
     }
 
     async _handleClientRequest(channelId, data, pipe) {
-        const serviceName = this._getTargetServiceName(data);
-
-        if (!serviceName) {
+        if (!REQUEST_WHITE_LIST.has(data.method)) {
             pipe(errors.E404);
             return;
         }
 
+        const serviceName = this._getTargetServiceName(data);
         const method = this._normalizeMethodName(data);
         const translate = this._makeTranslateToServiceData(channelId, data);
 
@@ -204,17 +207,7 @@ class Broker extends BasicService {
     _getTargetServiceName(data) {
         let path = data.method.split('.');
 
-        if (path.length < 2) {
-            return null;
-        }
-
-        let serviceName = path[0];
-
-        if (this._innerServices.has(serviceName)) {
-            return serviceName;
-        } else {
-            return null;
-        }
+        return path[0];
     }
 
     _normalizeMethodName(data) {
