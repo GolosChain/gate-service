@@ -6,7 +6,6 @@ const core = require('griboyedov');
 const logger = core.Logger;
 const stats = core.Stats.client;
 const BasicService = core.service.Basic;
-const serviceAliasEnv = core.ServiceAliasEnv;
 const env = require('../Env');
 const errors = require('../Error');
 
@@ -25,7 +24,6 @@ class Broker extends BasicService {
     async start() {
         const inner = this._innerGate;
         const front = this._frontendGate;
-        const requiredClients = serviceAliasEnv;
 
         this._innerServices = new Set(Object.keys(requiredClients));
 
@@ -33,7 +31,10 @@ class Broker extends BasicService {
             serverRoutes: {
                 transfer: this._transferToClient.bind(this),
             },
-            requiredClients,
+            requiredClients: {
+                notify: env.GLS_NOTIFY_CONNECT,
+                options: env.GLS_OPTIONS_CONNECT,
+            },
         });
 
         await front.start(async (channelId, data, pipe) => {
