@@ -29,8 +29,7 @@ class Broker extends BasicService {
                 transfer: this._transferToClient.bind(this),
             },
             requiredClients: {
-                notify: env.GLS_NOTIFY_CONNECT,
-                options: env.GLS_OPTIONS_CONNECT,
+                notify: env.GLS_FACADE_CONNECT,
             },
         });
 
