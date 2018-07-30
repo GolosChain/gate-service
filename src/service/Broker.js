@@ -29,7 +29,7 @@ class Broker extends BasicService {
                 transfer: this._transferToClient.bind(this),
             },
             requiredClients: {
-                notify: env.GLS_FACADE_CONNECT,
+                facade: env.GLS_FACADE_CONNECT,
             },
         });
 
@@ -82,7 +82,7 @@ class Broker extends BasicService {
         }
 
         if (this._userMapping.get(channelId) === null) {
-            await this._authClient(channelId, data, pipe);
+            await this._handleAnonymousRequest(channelId, data, pipe);
         } else {
             await this._handleClientRequest(channelId, data, pipe);
         }
@@ -101,6 +101,30 @@ class Broker extends BasicService {
                 reject(parseError);
             }
         });
+    }
+
+    async _handleAnonymousRequest(channelId, data, pipe) {
+        switch (data.method) {
+            case 'getSecret':
+                await this._resendAuthSecret(channelId, data, pipe);
+                break;
+
+            case 'auth':
+                await this._authClient(channelId, data, pipe);
+                break;
+
+            default:
+                pipe(errors.E400);
+        }
+    }
+
+    async _resendAuthSecret(channelId, data, pipe) {
+        const secret = this._secretMapping.get(channelId);
+        const request = this._makeAuthRequestObject(secret);
+
+        request.id = data.id;
+
+        pipe(request);
     }
 
     async _authClient(channelId, data, pipe) {
