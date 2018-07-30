@@ -9,14 +9,6 @@ const BasicService = core.service.Basic;
 const env = require('../Env');
 const errors = require('../Error');
 
-const REQUEST_WHITE_LIST = new Set([
-    'notify.subscribe',
-    'notify.unsubscribe',
-    'notify.history',
-    'options.get',
-    'options.set',
-]);
-
 class Broker extends BasicService {
     constructor(InnerGate, FrontendGate) {
         super();
@@ -75,12 +67,6 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
-                try {
-                    await this._notifyAboutUserOfflineBy(channelId);
-                } catch (error) {
-                    // notify-service offline, do nothing
-                }
-
                 userMap.delete(channelId);
                 pipeMap.delete(channelId);
                 secretMap.delete(channelId);
@@ -179,11 +165,6 @@ class Broker extends BasicService {
     }
 
     async _handleClientRequest(channelId, data, pipe) {
-        if (!REQUEST_WHITE_LIST.has(data.method)) {
-            pipe(errors.E404);
-            return;
-        }
-
         const serviceName = this._getTargetServiceName(data);
         const method = this._normalizeMethodName(data);
         const translate = this._makeTranslateToServiceData(channelId, data);
@@ -250,20 +231,6 @@ class Broker extends BasicService {
         }
 
         return 'Ok';
-    }
-
-    async _notifyAboutUserOfflineBy(channelId) {
-        const user = this._userMapping.get(channelId);
-
-        if (!user) {
-            return;
-        }
-
-        await this._innerGate.sendTo('notify', 'unsubscribe', {
-            user,
-            channelId,
-            requestId: null,
-        });
     }
 
     _makeAuthRequestObject(secret) {
