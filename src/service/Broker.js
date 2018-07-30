@@ -188,37 +188,22 @@ class Broker extends BasicService {
     }
 
     async _handleClientRequest(channelId, data, pipe) {
-        const serviceName = this._getTargetServiceName(data);
-        const method = this._normalizeMethodName(data);
         const translate = this._makeTranslateToServiceData(channelId, data);
 
         try {
-            const response = await this._innerGate.sendTo(serviceName, method, translate);
+            const response = await this._innerGate.sendTo('facade', 'transfer', translate);
 
             response.id = data.id;
 
             pipe(response);
         } catch (error) {
-            stats.increment(`pass_data_to_${serviceName}_error`);
+            stats.increment(`pass_data_error`);
             logger.error(
-                `Fail to pass data from client to service - [${serviceName}, ${method}] - ${error}`
+                `Fail to pass data from client to facade - ${error}`
             );
 
             pipe(errors.E503);
         }
-    }
-
-    _getTargetServiceName(data) {
-        let path = data.method.split('.');
-
-        return path[0];
-    }
-
-    _normalizeMethodName(data) {
-        return data.method
-            .split('.')
-            .slice(1)
-            .join();
     }
 
     _makeTranslateToServiceData(channelId, data) {
