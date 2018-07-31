@@ -66,9 +66,13 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
+                const user = userMap.get(channelId);
+
                 userMap.delete(channelId);
                 pipeMap.delete(channelId);
                 secretMap.delete(channelId);
+
+                await this._notifyAboutOffline(user, channelId);
                 break;
         }
     }
@@ -198,9 +202,7 @@ class Broker extends BasicService {
             pipe(response);
         } catch (error) {
             stats.increment(`pass_data_error`);
-            logger.error(
-                `Fail to pass data from client to facade - ${error}`
-            );
+            logger.error(`Fail to pass data from client to facade - ${error}`);
 
             pipe(errors.E503);
         }
@@ -239,6 +241,10 @@ class Broker extends BasicService {
         }
 
         return 'Ok';
+    }
+
+    async _notifyAboutOffline(user, channelId) {
+        await this._innerGate.sendTo('facade', 'offline', {user, channelId});
     }
 
     _makeAuthRequestObject(secret) {
