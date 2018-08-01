@@ -6,8 +6,8 @@ const core = require('gls-core-service');
 const logger = core.Logger;
 const stats = core.Stats.client;
 const BasicService = core.service.Basic;
+const errors = core.HttpError;
 const env = require('../Env');
-const errors = require('../Error');
 
 class Broker extends BasicService {
     constructor(InnerGate, FrontendGate) {
@@ -195,7 +195,7 @@ class Broker extends BasicService {
         const translate = this._makeTranslateToServiceData(channelId, data);
 
         try {
-            const response = await this._innerGate.sendTo('facade', 'transfer', translate);
+            const response = await this._innerGate.sendTo('facade', data.method, translate);
 
             response.id = data.id;
 
