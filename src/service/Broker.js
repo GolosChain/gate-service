@@ -214,7 +214,7 @@ class Broker extends BasicService {
             channelId,
             requestId: data.id,
             user: this._userMapping.get(channelId),
-            params: data.params,
+            params: data.params || {},
         };
     }
 
