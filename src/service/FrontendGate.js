@@ -5,7 +5,7 @@ const logger = core.Logger;
 const stats = core.Stats.client;
 const env = require('../Env');
 const BasicService = core.service.Basic;
-const errors = require('../Error');
+const errors = core.HttpError;
 
 class FrontendGate extends BasicService {
     constructor() {
@@ -125,10 +125,17 @@ class FrontendGate extends BasicService {
         const pipe = this._pipeMapping.get(socket);
 
         this._callback(pipe, requestData, responseData => {
+            if (!this._pipeMapping.get(socket)) {
+                logger.log('Client close connection before get response.');
+                return;
+            }
+
             socket.send(this._serializeMessage(responseData, requestData.id));
         }).catch(error => {
             logger.error(`Frontend Gate internal server error ${error}`);
-            socket.send(this._serializeMessage(errors.E500, requestData.id));
+            socket.send(this._serializeMessage(errors.E500, requestData.id), () => {
+                // do noting, just notify or pass
+            });
             stats.increment('frontend_gate_internal_server_error');
         });
     }

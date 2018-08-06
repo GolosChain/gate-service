@@ -6,16 +6,8 @@ const core = require('gls-core-service');
 const logger = core.Logger;
 const stats = core.Stats.client;
 const BasicService = core.service.Basic;
+const errors = core.HttpError;
 const env = require('../Env');
-const errors = require('../Error');
-
-const REQUEST_WHITE_LIST = new Set([
-    'notify.subscribe',
-    'notify.unsubscribe',
-    'notify.history',
-    'options.get',
-    'options.set',
-]);
 
 class Broker extends BasicService {
     constructor(InnerGate, FrontendGate) {
@@ -37,8 +29,7 @@ class Broker extends BasicService {
                 transfer: this._transferToClient.bind(this),
             },
             requiredClients: {
-                notify: env.GLS_NOTIFY_CONNECT,
-                options: env.GLS_OPTIONS_CONNECT,
+                facade: env.GLS_FACADE_CONNECT,
             },
         });
 
@@ -75,15 +66,13 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
-                try {
-                    await this._notifyAboutUserOfflineBy(channelId);
-                } catch (error) {
-                    // notify-service offline, do nothing
-                }
+                const user = userMap.get(channelId);
 
                 userMap.delete(channelId);
                 pipeMap.delete(channelId);
                 secretMap.delete(channelId);
+
+                await this._notifyAboutOffline(user, channelId);
                 break;
         }
     }
@@ -97,7 +86,7 @@ class Broker extends BasicService {
         }
 
         if (this._userMapping.get(channelId) === null) {
-            await this._authClient(channelId, data, pipe);
+            await this._handleAnonymousRequest(channelId, data, pipe);
         } else {
             await this._handleClientRequest(channelId, data, pipe);
         }
@@ -116,6 +105,30 @@ class Broker extends BasicService {
                 reject(parseError);
             }
         });
+    }
+
+    async _handleAnonymousRequest(channelId, data, pipe) {
+        switch (data.method) {
+            case 'getSecret':
+                await this._resendAuthSecret(channelId, data, pipe);
+                break;
+
+            case 'auth':
+                await this._authClient(channelId, data, pipe);
+                break;
+
+            default:
+                pipe(errors.E400);
+        }
+    }
+
+    async _resendAuthSecret(channelId, data, pipe) {
+        const secret = this._secretMapping.get(channelId);
+        const request = this._makeAuthRequestObject(secret);
+
+        request.id = data.id;
+
+        pipe(request);
     }
 
     async _authClient(channelId, data, pipe) {
@@ -139,7 +152,7 @@ class Broker extends BasicService {
             return;
         }
 
-        pipe(this._makeResponseObject(['Passed'], data.id));
+        pipe(this._makeResponseObject({ status: 'OK' }, data.id));
 
         this._userMapping.set(channelId, user);
         this._pipeMapping.set(channelId, pipe);
@@ -179,42 +192,20 @@ class Broker extends BasicService {
     }
 
     async _handleClientRequest(channelId, data, pipe) {
-        if (!REQUEST_WHITE_LIST.has(data.method)) {
-            pipe(errors.E404);
-            return;
-        }
-
-        const serviceName = this._getTargetServiceName(data);
-        const method = this._normalizeMethodName(data);
         const translate = this._makeTranslateToServiceData(channelId, data);
 
         try {
-            const response = await this._innerGate.sendTo(serviceName, method, translate);
+            const response = await this._innerGate.sendTo('facade', data.method, translate);
 
             response.id = data.id;
 
             pipe(response);
         } catch (error) {
-            stats.increment(`pass_data_to_${serviceName}_error`);
-            logger.error(
-                `Fail to pass data from client to service - [${serviceName}, ${method}] - ${error}`
-            );
+            stats.increment(`pass_data_error`);
+            logger.error(`Fail to pass data from client to facade - ${error}`);
 
             pipe(errors.E503);
         }
-    }
-
-    _getTargetServiceName(data) {
-        let path = data.method.split('.');
-
-        return path[0];
-    }
-
-    _normalizeMethodName(data) {
-        return data.method
-            .split('.')
-            .slice(1)
-            .join();
     }
 
     _makeTranslateToServiceData(channelId, data) {
@@ -252,22 +243,12 @@ class Broker extends BasicService {
         return 'Ok';
     }
 
-    async _notifyAboutUserOfflineBy(channelId) {
-        const user = this._userMapping.get(channelId);
-
-        if (!user) {
-            return;
-        }
-
-        await this._innerGate.sendTo('notify', 'unsubscribe', {
-            user,
-            channelId,
-            requestId: null,
-        });
+    async _notifyAboutOffline(user, channelId) {
+        await this._innerGate.sendTo('facade', 'offline', { user, channelId });
     }
 
     _makeAuthRequestObject(secret) {
-        return jayson.utils.request('sign', [secret], null);
+        return jayson.utils.request('sign', { secret }, null);
     }
 
     _makeResponseObject(data, id = null) {
