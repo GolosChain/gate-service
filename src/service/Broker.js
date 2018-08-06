@@ -152,7 +152,7 @@ class Broker extends BasicService {
             return;
         }
 
-        pipe(this._makeResponseObject(['Passed'], data.id));
+        pipe(this._makeResponseObject({ status: 'OK' }, data.id));
 
         this._userMapping.set(channelId, user);
         this._pipeMapping.set(channelId, pipe);
@@ -244,11 +244,11 @@ class Broker extends BasicService {
     }
 
     async _notifyAboutOffline(user, channelId) {
-        await this._innerGate.sendTo('facade', 'offline', {user, channelId});
+        await this._innerGate.sendTo('facade', 'offline', { user, channelId });
     }
 
     _makeAuthRequestObject(secret) {
-        return jayson.utils.request('sign', [secret], null);
+        return jayson.utils.request('sign', { secret }, null);
     }
 
     _makeResponseObject(data, id = null) {
