@@ -219,7 +219,7 @@ class Broker extends BasicService {
     }
 
     async _transferToClient(data) {
-        const { channelId, requestId, error, result } = data;
+        const { channelId, method, error, result } = data;
         const pipe = this._pipeMapping.get(channelId);
 
         if (!pipe) {
@@ -230,9 +230,9 @@ class Broker extends BasicService {
             let response;
 
             if (error) {
-                response = this._makeResponseErrorObject(error);
+                response = this._makeNotifyToClientObject(method, { error });
             } else {
-                response = this._makeResponseObject(result, requestId);
+                response = this._makeNotifyToClientObject(method, { result });
             }
 
             pipe(response);
@@ -248,7 +248,11 @@ class Broker extends BasicService {
     }
 
     _makeAuthRequestObject(secret) {
-        return jayson.utils.request('sign', { secret }, null);
+        return this._makeNotifyToClientObject('sign', { secret });
+    }
+
+    _makeNotifyToClientObject(method, data) {
+        return jayson.utils.request(method, data, 'rpc-notify');
     }
 
     _makeResponseObject(data, id = null) {
