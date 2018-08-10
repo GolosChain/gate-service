@@ -159,7 +159,7 @@ class FrontendGate extends BasicService {
         data = Object.assign({}, data);
         data.id = data.id || defaultId;
 
-        if (data.id === null) {
+        if (data.id === null || data.id === 'rpc-notify') {
             delete data.id;
         }
 
