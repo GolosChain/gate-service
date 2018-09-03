@@ -117,6 +117,7 @@ class Broker extends BasicService {
                 await this._authClient(channelId, data, pipe);
                 break;
 
+            case 'registration.getState':
             case 'registration.firstStep':
             case 'registration.verify':
             case 'registration.toBlockChain':
