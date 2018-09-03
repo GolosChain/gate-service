@@ -127,7 +127,7 @@ class Broker extends BasicService {
                 break;
 
             default:
-                pipe(errors.E400);
+                pipe(errors.E403);
         }
     }
 
