@@ -124,6 +124,9 @@ class Broker extends BasicService {
             case 'registration.changePhone':
             case 'registration.resendSmsCode':
             case 'registration.subscribeOnSmsGet':
+            case 'rates.getActual':
+            case 'rates.getHistorical':
+            case 'rates.getHistoricalMulti':
                 this._pipeMapping.set(channelId, pipe);
                 await this._handleClientRequest(channelId, data, pipe);
                 break;
