@@ -55,7 +55,7 @@ class Broker extends BasicService {
 
         switch (event) {
             case 'open':
-                const secret = random.generate();
+                const secret = this._generateSecret();
                 const request = this._makeAuthRequestObject(secret);
 
                 userMap.set(channelId, null);
@@ -137,11 +137,11 @@ class Broker extends BasicService {
     }
 
     async _resendAuthSecret(channelId, data, pipe) {
-        const secret = this._secretMapping.get(channelId);
+        const secret = this._generateSecret();
         const request = this._makeAuthRequestObject(secret);
 
+        this._secretMapping.set(channelId, secret);
         request.id = data.id;
-
         pipe(request);
     }
 
@@ -275,6 +275,10 @@ class Broker extends BasicService {
 
     _makeResponseErrorObject({ code, message }) {
         return errors.makeRPCErrorObject(code, message);
+    }
+
+    _generateSecret() {
+        return random.generate();
     }
 }
 
