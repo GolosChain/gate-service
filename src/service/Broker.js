@@ -138,11 +138,10 @@ class Broker extends BasicService {
 
     async _resendAuthSecret(channelId, data, pipe) {
         const secret = this._generateSecret();
-        const request = this._makeAuthRequestObject(secret);
+        const response = this._makeResponseObject({ secret }, data.id);
 
         this._secretMapping.set(channelId, secret);
-        request.id = data.id;
-        pipe(request);
+        pipe(response);
     }
 
     async _authClient(channelId, data, pipe) {
