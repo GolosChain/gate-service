@@ -6,7 +6,7 @@ const core = require('gls-core-service');
 const logger = core.utils.Logger;
 const stats = core.utils.statsClient;
 const BasicService = core.services.Basic;
-const errors = core.data.httpError;
+const RpcObject = core.utils.RpcObject;
 const env = require('../env');
 
 class Broker extends BasicService {
@@ -132,13 +132,13 @@ class Broker extends BasicService {
                 break;
 
             default:
-                pipe(errors.E403);
+                pipe(RpcObject.error(1101, 'Invalid anonymous request - access denied'));
         }
     }
 
     async _resendAuthSecret(channelId, data, pipe) {
         const secret = this._generateSecret();
-        const response = this._makeResponseObject({ secret }, data.id);
+        const response = RpcObject.response(null, { secret }, data.id);
 
         this._secretMapping.set(channelId, secret);
         pipe(response);
@@ -148,7 +148,7 @@ class Broker extends BasicService {
         const timer = new Date();
 
         if (!this._validateClientAuth(data)) {
-            pipe(errors.E406);
+            pipe(RpcObject.error(1102, 'Invalid auth request - access denied'));
             return;
         }
 
@@ -159,13 +159,13 @@ class Broker extends BasicService {
         try {
             await golos.api.verifyAuthorityAsync(signObject);
         } catch (error) {
-            pipe(errors.E403);
+            pipe(RpcObject.error(1103, 'Blockchain verification failed - access denied'));
 
             stats.timing('user_failure_auth', new Date() - timer);
             return;
         }
 
-        pipe(this._makeResponseObject({ status: 'OK' }, data.id));
+        pipe(RpcObject.success({ status: 'OK' }, data.id));
 
         this._userMapping.set(channelId, user);
         this._pipeMapping.set(channelId, pipe);
@@ -217,7 +217,7 @@ class Broker extends BasicService {
             stats.increment(`pass_data_error`);
             logger.error(`Fail to pass data from client to facade - ${error}`);
 
-            pipe(errors.E503);
+            pipe(RpcObject.error(1104, 'Fail to pass data from client to facade'));
         }
     }
 
@@ -236,7 +236,7 @@ class Broker extends BasicService {
         const pipe = this._pipeMapping.get(channelId);
 
         if (!pipe) {
-            throw errors.E404.error;
+            throw { code: 1105, message: 'Cant transfer to client - not found' };
         }
 
         try {
@@ -250,7 +250,7 @@ class Broker extends BasicService {
 
             pipe(response);
         } catch (error) {
-            throw errors.E500.error;
+            throw { code: 1106, message: 'Notify client fatal error' };
         }
 
         return 'Ok';
@@ -265,15 +265,7 @@ class Broker extends BasicService {
     }
 
     _makeNotifyToClientObject(method, data) {
-        return jayson.utils.request(method, data, 'rpc-notify');
-    }
-
-    _makeResponseObject(data, id = null) {
-        return jayson.utils.response(null, data, id);
-    }
-
-    _makeResponseErrorObject({ code, message }) {
-        return errors.makeRPCErrorObject(code, message);
+        return RpcObject.request(method, data, 'rpc-notify');
     }
 
     _generateSecret() {
