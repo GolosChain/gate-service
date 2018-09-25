@@ -3,7 +3,7 @@ const uuid = require('uuid');
 const core = require('gls-core-service');
 const logger = core.utils.Logger;
 const stats = core.utils.statsClient;
-const env = require('../Env');
+const env = require('../env');
 const BasicService = core.services.Basic;
 const errors = core.data.httpError;
 

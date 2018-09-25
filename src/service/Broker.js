@@ -7,7 +7,7 @@ const logger = core.utils.Logger;
 const stats = core.utils.statsClient;
 const BasicService = core.services.Basic;
 const errors = core.data.httpError;
-const env = require('../Env');
+const env = require('../env');
 
 class Broker extends BasicService {
     constructor(InnerGate, FrontendGate) {
