@@ -1,11 +1,11 @@
 const WebSocket = require('ws');
 const uuid = require('uuid');
 const core = require('gls-core-service');
-const logger = core.Logger;
-const stats = core.Stats.client;
+const logger = core.utils.Logger;
+const stats = core.utils.statsClient;
 const env = require('../Env');
-const BasicService = core.service.Basic;
-const errors = core.HttpError;
+const BasicService = core.services.Basic;
+const errors = core.data.httpError;
 
 class FrontendGate extends BasicService {
     constructor() {

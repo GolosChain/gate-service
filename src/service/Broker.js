@@ -3,10 +3,10 @@ const jayson = require('jayson');
 const random = require('randomstring');
 const golos = require('golos-js');
 const core = require('gls-core-service');
-const logger = core.Logger;
-const stats = core.Stats.client;
-const BasicService = core.service.Basic;
-const errors = core.HttpError;
+const logger = core.utils.Logger;
+const stats = core.utils.statsClient;
+const BasicService = core.services.Basic;
+const errors = core.data.httpError;
 const env = require('../Env');
 
 class Broker extends BasicService {
