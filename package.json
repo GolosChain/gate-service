@@ -1,6 +1,6 @@
 {
     "name": "gate-service",
-    "version": "0.6.0",
+    "version": "1.0.0",
     "description": "",
     "main": "./src/index.js",
     "scripts": {
@@ -16,8 +16,8 @@
     "author": "golos.io",
     "license": "GPL-3.0",
     "dependencies": {
-        "gls-core-service": "git+https://github.com/GolosChain/core-service.git#16903ee5b5e140905ef26b51b44ab238d0ee7a0d",
-        "golos-js": "^0.7.3",
+        "gls-core-service": "^2.2.3",
+        "golos-js": "^0.7.4",
         "jayson": "^2.0.6",
         "ramda": "^0.25.0",
         "randomstring": "^1.1.5",

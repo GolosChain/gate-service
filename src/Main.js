@@ -2,7 +2,7 @@ const core = require('gls-core-service');
 const stats = core.utils.statsClient;
 const InnerGate = core.services.Connector;
 const BasicMain = core.services.BasicMain;
-const env = require('./Env');
+const env = require('./env');
 const Broker = require('./service/Broker');
 const FrontendGate = require('./service/FrontendGate');
 
