@@ -175,13 +175,9 @@ class FrontendGate extends BasicService {
             stats.increment('frontend_gate_serialization_error');
             logger.error(`Frontend Gate serialization error - ${error}`);
 
-            let errorData = Object.assign(
-                {},
-                RpcObject.error(1108, 'Internal server error on serialize message')
-            );
+            let errorData = RpcObject.error(1108, 'Internal server error on serialize message');
 
             errorData.id = defaultId;
-
             result = JSON.stringify(errorData);
         }
 
