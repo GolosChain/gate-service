@@ -1,8 +1,8 @@
 {
     "name": "gate-service",
-    "version": "0.5.0",
+    "version": "1.0.0",
     "description": "",
-    "main": "./src/Main.js",
+    "main": "./src/index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -16,12 +16,12 @@
     "author": "golos.io",
     "license": "GPL-3.0",
     "dependencies": {
-        "gls-core-service": "git+https://github.com/GolosChain/core-service.git",
-        "golos-js": "^0.7.2",
+        "gls-core-service": "^2.2.3",
+        "golos-js": "^0.7.4",
         "jayson": "^2.0.6",
         "ramda": "^0.25.0",
         "randomstring": "^1.1.5",
         "uuid": "^3.3.2",
-        "ws": "^5.2.1"
+        "ws": "^5.2.2"
     }
 }

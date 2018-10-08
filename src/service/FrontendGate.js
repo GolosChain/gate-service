@@ -1,11 +1,11 @@
 const WebSocket = require('ws');
 const uuid = require('uuid');
 const core = require('gls-core-service');
-const logger = core.Logger;
-const stats = core.Stats.client;
-const env = require('../Env');
-const BasicService = core.service.Basic;
-const errors = core.HttpError;
+const logger = core.utils.Logger;
+const stats = core.utils.statsClient;
+const RpcObject = core.utils.RpcObject;
+const BasicService = core.services.Basic;
+const env = require('../env');
 
 class FrontendGate extends BasicService {
     constructor() {
@@ -133,9 +133,15 @@ class FrontendGate extends BasicService {
             socket.send(this._serializeMessage(responseData, requestData.id));
         }).catch(error => {
             logger.error(`Frontend Gate internal server error ${error}`);
-            socket.send(this._serializeMessage(errors.E500, requestData.id), () => {
-                // do noting, just notify or pass
-            });
+            socket.send(
+                this._serializeMessage(
+                    RpcObject.error(1107, 'Internal server error on response to client'),
+                    requestData.id
+                ),
+                () => {
+                    // do noting, just notify or pass
+                }
+            );
             stats.increment('frontend_gate_internal_server_error');
         });
     }
@@ -169,10 +175,9 @@ class FrontendGate extends BasicService {
             stats.increment('frontend_gate_serialization_error');
             logger.error(`Frontend Gate serialization error - ${error}`);
 
-            let errorData = Object.assign({}, errors.E500);
+            let errorData = RpcObject.error(1108, 'Internal server error on serialize message');
 
             errorData.id = defaultId;
-
             result = JSON.stringify(errorData);
         }
 
