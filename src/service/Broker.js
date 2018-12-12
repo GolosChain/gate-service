@@ -127,6 +127,10 @@ class Broker extends BasicService {
             case 'rates.getActual':
             case 'rates.getHistorical':
             case 'rates.getHistoricalMulti':
+            case 'content.getNaturalFeed':
+            case 'content.getPopularFeed':
+            case 'content.getActualFeed':
+            case 'content.getPromoFeed':
                 this._pipeMapping.set(channelId, pipe);
                 await this._handleClientRequest(channelId, data, pipe);
                 break;
