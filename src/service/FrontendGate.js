@@ -51,17 +51,17 @@ class FrontendGate extends BasicService {
 
         pipeMap.set(socket, uuid());
         deadMap.set(socket, false);
-        this._notifyCallback(socket, 'open');
+        this._notifyCallback(socket, ip, 'open');
 
         socket.on('message', message => {
             deadMap.set(socket, false);
-            this._handleMessage(socket, message, ip);
+            this._handleMessage(socket, ip, message);
         });
 
         socket.on('close', () => {
             logger.log(`Frontend Gate connection close - ${ip}`);
 
-            this._notifyCallback(socket, 'close');
+            this._notifyCallback(socket, ip, 'close');
             pipeMap.delete(socket);
             deadMap.delete(socket);
         });
@@ -71,7 +71,7 @@ class FrontendGate extends BasicService {
 
             this._safeTerminateSocket(socket);
 
-            this._notifyCallback(socket, 'error');
+            this._notifyCallback(socket, ip, 'error');
             pipeMap.delete(socket);
             deadMap.delete(socket);
         });
@@ -108,20 +108,20 @@ class FrontendGate extends BasicService {
         }, env.GLS_FRONTEND_GATE_TIMEOUT_FOR_CLIENT);
     }
 
-    _handleMessage(socket, message, from) {
+    _handleMessage(socket, ip, message) {
         const requestData = this._deserializeMessage(message);
 
         if (requestData.error) {
-            this._handleConnectionError(socket, requestData, from);
+            this._handleConnectionError(socket, requestData, ip);
         } else {
-            this._notifyCallback(socket, requestData);
+            this._notifyCallback(socket, ip, requestData);
         }
     }
 
-    _notifyCallback(socket, requestData) {
-        const pipe = this._pipeMapping.get(socket);
+    _notifyCallback(socket, ip, requestData) {
+        const channelId = this._pipeMapping.get(socket);
 
-        this._callback(pipe, requestData, responseData => {
+        this._callback({ channelId, ip }, requestData, responseData => {
             if (!this._pipeMapping.get(socket)) {
                 logger.log('Client close connection before get response.');
                 return;
