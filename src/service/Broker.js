@@ -131,6 +131,8 @@ class Broker extends BasicService {
             case 'content.getPopularFeed':
             case 'content.getActualFeed':
             case 'content.getPromoFeed':
+            case 'meta.getPostsViewCount':
+            case 'meta.getUserLastOnline':
                 this._pipeMapping.set(channelId, pipe);
                 await this._handleClientRequest({ channelId, clientRequestIp }, data, pipe);
                 break;
