@@ -43,25 +43,25 @@ class FrontendGate extends BasicService {
     }
 
     _handleConnection(socket, request) {
-        const from = this._getRequestAddressLogString(request);
+        const clientRequestIp = this._getRequestIp(request);
         const pipeMap = this._pipeMapping;
         const deadMap = this._deadMapping;
 
-        logger.log(`Frontend Gate connection open - ${from}`);
+        logger.log(`Frontend Gate connection open - ${clientRequestIp}`);
 
         pipeMap.set(socket, uuid());
         deadMap.set(socket, false);
-        this._notifyCallback(socket, 'open');
+        this._notifyCallback(socket, clientRequestIp, 'open');
 
         socket.on('message', message => {
             deadMap.set(socket, false);
-            this._handleMessage(socket, message, from);
+            this._handleMessage(socket, clientRequestIp, message);
         });
 
         socket.on('close', () => {
-            logger.log(`Frontend Gate connection close - ${from}`);
+            logger.log(`Frontend Gate connection close - ${clientRequestIp}`);
 
-            this._notifyCallback(socket, 'close');
+            this._notifyCallback(socket, clientRequestIp, 'close');
             pipeMap.delete(socket);
             deadMap.delete(socket);
         });
@@ -71,7 +71,7 @@ class FrontendGate extends BasicService {
 
             this._safeTerminateSocket(socket);
 
-            this._notifyCallback(socket, 'error');
+            this._notifyCallback(socket, clientRequestIp, 'error');
             pipeMap.delete(socket);
             deadMap.delete(socket);
         });
@@ -81,18 +81,15 @@ class FrontendGate extends BasicService {
         });
     }
 
-    _getRequestAddressLogString(request) {
-        const ip = request.connection.remoteAddress;
-        const forwardHeader = request.headers['x-forwarded-for'];
-        let forward = '';
-        let result = ip;
+    _getRequestIp(request) {
+        const originIp = request.connection.remoteAddress;
+        const proxyIp = request.headers['x-real-ip'];
 
-        if (forwardHeader) {
-            forward = forwardHeader.split(/\s*,\s*/)[0];
-            result += `<= ${forward}`;
+        if (proxyIp) {
+            return proxyIp.split(/\s*,\s*/)[0];
+        } else {
+            return originIp;
         }
-
-        return result;
     }
 
     _makeBrokenDropper() {
@@ -111,20 +108,20 @@ class FrontendGate extends BasicService {
         }, env.GLS_FRONTEND_GATE_TIMEOUT_FOR_CLIENT);
     }
 
-    _handleMessage(socket, message, from) {
+    _handleMessage(socket, clientRequestIp, message) {
         const requestData = this._deserializeMessage(message);
 
         if (requestData.error) {
-            this._handleConnectionError(socket, requestData, from);
+            this._handleConnectionError(socket, requestData, clientRequestIp);
         } else {
-            this._notifyCallback(socket, requestData);
+            this._notifyCallback(socket, clientRequestIp, requestData);
         }
     }
 
-    _notifyCallback(socket, requestData) {
-        const pipe = this._pipeMapping.get(socket);
+    _notifyCallback(socket, clientRequestIp, requestData) {
+        const channelId = this._pipeMapping.get(socket);
 
-        this._callback(pipe, requestData, responseData => {
+        this._callback({ channelId, clientRequestIp }, requestData, responseData => {
             if (!this._pipeMapping.get(socket)) {
                 logger.log('Client close connection before get response.');
                 return;

@@ -33,11 +33,11 @@ class Broker extends BasicService {
             },
         });
 
-        await front.start(async (channelId, data, pipe) => {
+        await front.start(async ({ channelId, clientRequestIp }, data, pipe) => {
             if (R.is(String, data)) {
                 await this._handleFrontendEvent(channelId, data, pipe);
             } else {
-                await this._handleRequest(channelId, data, pipe);
+                await this._handleRequest({ channelId, clientRequestIp }, data, pipe);
             }
         });
 
@@ -77,7 +77,7 @@ class Broker extends BasicService {
         }
     }
 
-    async _handleRequest(channelId, data, pipe) {
+    async _handleRequest({ channelId, clientRequestIp }, data, pipe) {
         const parsedData = await this._parseRequest(data);
 
         if (parsedData.error) {
@@ -86,9 +86,9 @@ class Broker extends BasicService {
         }
 
         if (this._userMapping.get(channelId) === null) {
-            await this._handleAnonymousRequest(channelId, data, pipe);
+            await this._handleAnonymousRequest({ channelId, clientRequestIp }, data, pipe);
         } else {
-            await this._handleClientRequest(channelId, data, pipe);
+            await this._handleClientRequest({ channelId, clientRequestIp }, data, pipe);
         }
     }
 
@@ -107,7 +107,7 @@ class Broker extends BasicService {
         });
     }
 
-    async _handleAnonymousRequest(channelId, data, pipe) {
+    async _handleAnonymousRequest({ channelId, clientRequestIp }, data, pipe) {
         switch (data.method) {
             case 'getSecret':
                 await this._resendAuthSecret(channelId, data, pipe);
@@ -131,8 +131,11 @@ class Broker extends BasicService {
             case 'content.getPopularFeed':
             case 'content.getActualFeed':
             case 'content.getPromoFeed':
+            case 'meta.recordPostView':
+            case 'meta.getPostsViewCount':
+            case 'meta.getUserLastOnline':
                 this._pipeMapping.set(channelId, pipe);
-                await this._handleClientRequest(channelId, data, pipe);
+                await this._handleClientRequest({ channelId, clientRequestIp }, data, pipe);
                 break;
 
             default:
@@ -208,8 +211,8 @@ class Broker extends BasicService {
         };
     }
 
-    async _handleClientRequest(channelId, data, pipe) {
-        const translate = this._makeTranslateToServiceData(channelId, data);
+    async _handleClientRequest({ channelId, clientRequestIp }, data, pipe) {
+        const translate = this._makeTranslateToServiceData({ channelId, clientRequestIp }, data);
 
         try {
             const response = await this._innerGate.sendTo('facade', data.method, translate);
@@ -225,9 +228,10 @@ class Broker extends BasicService {
         }
     }
 
-    _makeTranslateToServiceData(channelId, data) {
+    _makeTranslateToServiceData({ channelId, clientRequestIp }, data) {
         return {
             _frontendGate: true,
+            clientRequestIp,
             channelId,
             requestId: data.id,
             user: this._userMapping.get(channelId),
