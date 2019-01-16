@@ -231,9 +231,15 @@ class Broker extends BasicService {
     _makeTranslateToServiceData({ channelId, clientRequestIp }, data) {
         return {
             _frontendGate: true,
-            clientRequestIp,
-            channelId,
-            requestId: data.id,
+            // TODO: finish after creating Auth service
+            auth,
+            routing: {
+                requestId: data.id,
+                channelId,
+            },
+            meta: {
+                clientRequestIp,
+            },
             user: this._userMapping.get(channelId),
             params: data.params || {},
         };
