@@ -1,6 +1,6 @@
 {
   "name": "gate-service",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "",
   "main": "./src/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
   "author": "golos.io",
   "license": "GPL-3.0",
   "dependencies": {
-    "gls-core-service": "^2.2.3",
+    "gls-core-service": "^2.17.0",
     "golos-js": "^0.7.4",
     "jayson": "^2.0.6",
     "ramda": "^0.25.0",
