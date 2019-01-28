@@ -15,7 +15,6 @@ class Broker extends BasicService {
         this._frontendGate = new FrontendGate();
         this._userMapping = new Map(); // channelId -> user
         this._pipeMapping = new Map(); // channelId -> pipe
-        this._secretMapping = new Map(); // channelId -> secret
         this._authMapping = new Map(); // channelId -> auth data
     }
 
@@ -51,16 +50,16 @@ class Broker extends BasicService {
     async _handleFrontendEvent(channelId, event, pipe) {
         const userMap = this._userMapping;
         const pipeMap = this._pipeMapping;
-        const secretMap = this._secretMapping;
 
         switch (event) {
             case 'open':
-                const secretResponse = await this._innerGate.sendTo('auth', 'auth.generateSecret');
+                const secretResponse = await this._innerGate.sendTo('auth', 'auth.generateSecret', {
+                    channelId,
+                });
                 const secret = secretResponse.result;
                 const request = this._makeAuthRequestObject(secret);
 
                 userMap.set(channelId, null);
-                secretMap.set(channelId, secret);
 
                 pipe(request);
                 break;
@@ -71,7 +70,6 @@ class Broker extends BasicService {
 
                 userMap.delete(channelId);
                 pipeMap.delete(channelId);
-                secretMap.delete(channelId);
 
                 await this._notifyAboutOffline(user, channelId);
                 break;
@@ -88,10 +86,11 @@ class Broker extends BasicService {
 
         if (this._userMapping.get(channelId) === null) {
             const { user, sign, secret } = data.params;
+
             this._userMapping.set(channelId, { user, sign, secret });
         }
 
-        await this._handleClientRequest({ channelId, clientRequestIp }, data, pipe);
+        await this._handleClient({ channelId, clientRequestIp }, data, pipe);
     }
 
     _parseRequest(data) {
@@ -109,21 +108,28 @@ class Broker extends BasicService {
         });
     }
 
-    async _handleClientRequest({ channelId, clientRequestIp }, data, pipe) {
-        const translate = this._makeTranslateToServiceData({ channelId, clientRequestIp }, data);
-
+    async _handleClient({ channelId, clientRequestIp }, data, pipe) {
         try {
             let response = {};
 
             switch (data.method) {
                 case 'auth.authorize':
                 case 'auth.generateSecret': {
-                    response = await this._innerGate.sendTo('auth', data.method, translate.params);
+                    response = await this._innerGate.sendTo('auth', data.method, {
+                        ...data.params,
+                        channelId,
+                    });
                     break;
                 }
-                default:
+                default: {
+                    const translate = this._makeTranslateToServiceData(
+                        { channelId, clientRequestIp },
+                        data
+                    );
+
                     response = await this._innerGate.sendTo('facade', data.method, translate);
                     break;
+                }
             }
 
             response.id = data.id;
