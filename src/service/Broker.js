@@ -13,7 +13,6 @@ class Broker extends BasicService {
 
         this._innerGate = new InnerGate();
         this._frontendGate = new FrontendGate();
-        this._userMapping = new Map(); // channelId -> user
         this._pipeMapping = new Map(); // channelId -> pipe
         this._authMapping = new Map(); // channelId -> auth data
     }
@@ -48,8 +47,8 @@ class Broker extends BasicService {
     }
 
     async _handleFrontendEvent(channelId, event, pipe) {
-        const userMap = this._userMapping;
         const pipeMap = this._pipeMapping;
+        const authMap = this._authMapping;
 
         switch (event) {
             case 'open':
@@ -59,19 +58,20 @@ class Broker extends BasicService {
                 const secret = secretResponse.result;
                 const request = this._makeAuthRequestObject(secret);
 
-                userMap.set(channelId, null);
-
                 pipe(request);
                 break;
 
             case 'close':
             case 'error':
-                const user = userMap.get(channelId);
+                const auth = authMap.get(channelId);
+                const user = auth.user;
 
-                userMap.delete(channelId);
                 pipeMap.delete(channelId);
+                authMap.delete(channelId);
 
-                await this._notifyAboutOffline(user, channelId);
+                if (user) {
+                    await this._notifyAboutOffline({ user, channelId });
+                }
                 break;
         }
     }
@@ -82,12 +82,6 @@ class Broker extends BasicService {
         if (parsedData.error) {
             pipe(parsedData);
             return;
-        }
-
-        if (this._userMapping.get(channelId) === null) {
-            const { user, sign, secret } = data.params;
-
-            this._userMapping.set(channelId, { user, sign, secret });
         }
 
         await this._handleClient({ channelId, clientRequestIp }, data, pipe);
@@ -113,14 +107,23 @@ class Broker extends BasicService {
             let response = {};
 
             switch (data.method) {
-                case 'auth.authorize':
-                case 'auth.generateSecret': {
+                case 'auth.generateSecret':
                     response = await this._innerGate.sendTo('auth', data.method, {
                         ...data.params,
                         channelId,
                     });
                     break;
-                }
+
+                case 'auth.authorize':
+                    response = await this._innerGate.sendTo('auth', data.method, {
+                        ...data.params,
+                        channelId,
+                    });
+                    if (response.error) {
+                        throw error;
+                    }
+                    this._authMapping.set(channelId, response.result);
+                    break;
                 default: {
                     const translate = this._makeTranslateToServiceData(
                         { channelId, clientRequestIp },
@@ -154,7 +157,6 @@ class Broker extends BasicService {
             meta: {
                 clientRequestIp,
             },
-            user: this._userMapping.get(channelId),
             params: data.params || {},
         };
     }
@@ -184,8 +186,8 @@ class Broker extends BasicService {
         return 'Ok';
     }
 
-    async _notifyAboutOffline(user, channelId) {
-        await this._innerGate.sendTo('facade', 'offline', { user, channelId });
+    async _notifyAboutOffline({ user, channelId }) {
+        await this._innerGate.sendTo('facade', 'offline', { channelId, user });
     }
 
     _makeAuthRequestObject(secret) {
