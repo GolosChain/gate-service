@@ -52,14 +52,14 @@ class Broker extends BasicService {
 
         switch (event) {
             case 'open':
-                const secretResponse = await this._innerGate.sendTo('auth', 'auth.generateSecret', {
-                    channelId,
-                });
-                if (secretResponse.error) {
-                    console.error(secretResponse.error);
-                    throw secretResponse.error;
-                }
-                const secret = secretResponse.result;
+                const { secret } = await this._innerGate.callService(
+                    'auth',
+                    'auth.generateSecret',
+                    {
+                        channelId,
+                    }
+                );
+
                 const request = this._makeAuthRequestObject(secret);
 
                 pipe(request);
