@@ -55,6 +55,10 @@ class Broker extends BasicService {
                 const secretResponse = await this._innerGate.sendTo('auth', 'auth.generateSecret', {
                     channelId,
                 });
+                if (secretResponse.error) {
+                    console.error(secretResponse.error);
+                    throw secretResponse.error;
+                }
                 const secret = secretResponse.result;
                 const request = this._makeAuthRequestObject(secret);
 
