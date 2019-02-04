@@ -111,6 +111,10 @@ class FrontendGate extends BasicService {
     _handleMessage(socket, clientRequestIp, message) {
         const requestData = this._deserializeMessage(message);
 
+        if (typeof requestData.id === 'undefined') {
+            return;
+        }
+
         if (requestData.error) {
             this._handleConnectionError(socket, requestData, clientRequestIp);
         } else {
