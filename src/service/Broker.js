@@ -1,7 +1,5 @@
 const R = require('ramda');
 const jayson = require('jayson');
-const random = require('randomstring');
-const golos = require('golos-js');
 const core = require('gls-core-service');
 const logger = core.utils.Logger;
 const stats = core.utils.statsClient;
@@ -15,9 +13,8 @@ class Broker extends BasicService {
 
         this._innerGate = new InnerGate();
         this._frontendGate = new FrontendGate();
-        this._userMapping = new Map(); // channelId -> user
         this._pipeMapping = new Map(); // channelId -> pipe
-        this._secretMapping = new Map(); // channelId -> secret
+        this._authMapping = new Map(); // channelId -> auth data
     }
 
     async start() {
@@ -30,6 +27,7 @@ class Broker extends BasicService {
             },
             requiredClients: {
                 facade: env.GLS_FACADE_CONNECT,
+                auth: env.GLS_AUTH_CONNECT,
             },
         });
 
@@ -49,30 +47,35 @@ class Broker extends BasicService {
     }
 
     async _handleFrontendEvent(channelId, event, pipe) {
-        const userMap = this._userMapping;
         const pipeMap = this._pipeMapping;
-        const secretMap = this._secretMapping;
+        const authMap = this._authMapping;
 
         switch (event) {
             case 'open':
-                const secret = this._generateSecret();
-                const request = this._makeAuthRequestObject(secret);
+                const { secret } = await this._innerGate.callService(
+                    'auth',
+                    'auth.generateSecret',
+                    {
+                        channelId,
+                    }
+                );
 
-                userMap.set(channelId, null);
-                secretMap.set(channelId, secret);
+                const request = this._makeAuthRequestObject(secret);
 
                 pipe(request);
                 break;
 
             case 'close':
             case 'error':
-                const user = userMap.get(channelId);
+                const auth = authMap.get(channelId);
+                const user = auth.user;
 
-                userMap.delete(channelId);
                 pipeMap.delete(channelId);
-                secretMap.delete(channelId);
+                authMap.delete(channelId);
 
-                await this._notifyAboutOffline(user, channelId);
+                if (user) {
+                    await this._notifyAboutOffline({ user, channelId });
+                }
                 break;
         }
     }
@@ -85,11 +88,7 @@ class Broker extends BasicService {
             return;
         }
 
-        if (this._userMapping.get(channelId) === null) {
-            await this._handleAnonymousRequest({ channelId, clientRequestIp }, data, pipe);
-        } else {
-            await this._handleClientRequest({ channelId, clientRequestIp }, data, pipe);
-        }
+        await this._handleClient({ channelId, clientRequestIp }, data, pipe);
     }
 
     _parseRequest(data) {
@@ -107,115 +106,38 @@ class Broker extends BasicService {
         });
     }
 
-    async _handleAnonymousRequest({ channelId, clientRequestIp }, data, pipe) {
-        switch (data.method) {
-            case 'getSecret':
-                await this._resendAuthSecret(channelId, data, pipe);
-                break;
-
-            case 'auth':
-                await this._authClient(channelId, data, pipe);
-                break;
-
-            case 'registration.getState':
-            case 'registration.firstStep':
-            case 'registration.verify':
-            case 'registration.toBlockChain':
-            case 'registration.changePhone':
-            case 'registration.resendSmsCode':
-            case 'registration.subscribeOnSmsGet':
-            case 'rates.getActual':
-            case 'rates.getHistorical':
-            case 'rates.getHistoricalMulti':
-            case 'content.getNaturalFeed':
-            case 'content.getPopularFeed':
-            case 'content.getActualFeed':
-            case 'content.getPromoFeed':
-            case 'meta.recordPostView':
-            case 'meta.getPostsViewCount':
-            case 'meta.getUserLastOnline':
-                this._pipeMapping.set(channelId, pipe);
-                await this._handleClientRequest({ channelId, clientRequestIp }, data, pipe);
-                break;
-
-            default:
-                pipe(RpcObject.error(1101, 'Invalid anonymous request - access denied'));
-        }
-    }
-
-    async _resendAuthSecret(channelId, data, pipe) {
-        const secret = this._generateSecret();
-        const response = RpcObject.response(null, { secret }, data.id);
-
-        this._secretMapping.set(channelId, secret);
-        pipe(response);
-    }
-
-    async _authClient(channelId, data, pipe) {
-        const timer = new Date();
-
-        if (!this._validateClientAuth(data)) {
-            pipe(RpcObject.error(1102, 'Invalid auth request - access denied'));
-            return;
-        }
-
-        const { user, sign } = data.params;
-        const secret = this._secretMapping.get(channelId);
-        const signObject = this._makeUserFakeTransactionObject(user, sign, secret);
-
+    async _handleClient({ channelId, clientRequestIp }, data, pipe) {
         try {
-            await golos.api.verifyAuthorityAsync(signObject);
-        } catch (error) {
-            pipe(RpcObject.error(1103, 'Blockchain verification failed - access denied'));
+            let response = {};
 
-            stats.timing('user_failure_auth', new Date() - timer);
-            return;
-        }
+            switch (data.method) {
+                case 'auth.generateSecret':
+                    response = await this._innerGate.sendTo('auth', data.method, {
+                        ...data.params,
+                        channelId,
+                    });
+                    break;
 
-        pipe(RpcObject.success({ status: 'OK' }, data.id));
+                case 'auth.authorize':
+                    response = await this._innerGate.sendTo('auth', data.method, {
+                        ...data.params,
+                        channelId,
+                    });
+                    if (response.error) {
+                        throw error;
+                    }
+                    this._authMapping.set(channelId, response.result);
+                    break;
+                default: {
+                    const translate = this._makeTranslateToServiceData(
+                        { channelId, clientRequestIp },
+                        data
+                    );
 
-        this._userMapping.set(channelId, user);
-        this._pipeMapping.set(channelId, pipe);
-
-        stats.timing('user_auth', new Date() - timer);
-    }
-
-    _validateClientAuth(data) {
-        const params = data.params;
-
-        if (!params) {
-            return false;
-        }
-
-        return R.all(R.is(String), [params.user, params.sign]);
-    }
-
-    _makeUserFakeTransactionObject(user, sign, secret) {
-        return {
-            ref_block_num: 3367,
-            ref_block_prefix: 879276768,
-            expiration: '2018-07-06T14:52:24',
-            operations: [
-                [
-                    'vote',
-                    {
-                        voter: user,
-                        author: 'test',
-                        permlink: secret,
-                        weight: 1,
-                    },
-                ],
-            ],
-            extensions: [],
-            signatures: [sign],
-        };
-    }
-
-    async _handleClientRequest({ channelId, clientRequestIp }, data, pipe) {
-        const translate = this._makeTranslateToServiceData({ channelId, clientRequestIp }, data);
-
-        try {
-            const response = await this._innerGate.sendTo('facade', data.method, translate);
+                    response = await this._innerGate.sendTo('facade', data.method, translate);
+                    break;
+                }
+            }
 
             response.id = data.id;
 
@@ -231,10 +153,14 @@ class Broker extends BasicService {
     _makeTranslateToServiceData({ channelId, clientRequestIp }, data) {
         return {
             _frontendGate: true,
-            clientRequestIp,
-            channelId,
-            requestId: data.id,
-            user: this._userMapping.get(channelId),
+            auth: this._authMapping.get(channelId),
+            routing: {
+                requestId: data.id,
+                channelId,
+            },
+            meta: {
+                clientRequestIp,
+            },
             params: data.params || {},
         };
     }
@@ -264,8 +190,8 @@ class Broker extends BasicService {
         return 'Ok';
     }
 
-    async _notifyAboutOffline(user, channelId) {
-        await this._innerGate.sendTo('facade', 'offline', { user, channelId });
+    async _notifyAboutOffline({ user, channelId }) {
+        await this._innerGate.sendTo('facade', 'offline', { channelId, user });
     }
 
     _makeAuthRequestObject(secret) {
@@ -274,10 +200,6 @@ class Broker extends BasicService {
 
     _makeNotifyToClientObject(method, data) {
         return RpcObject.request(method, data, 'rpc-notify');
-    }
-
-    _generateSecret() {
-        return random.generate();
     }
 }
 
