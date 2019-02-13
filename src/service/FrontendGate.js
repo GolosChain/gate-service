@@ -111,7 +111,8 @@ class FrontendGate extends BasicService {
     _handleMessage(socket, clientRequestIp, message) {
         const requestData = this._deserializeMessage(message);
 
-        if (typeof requestData.id === 'undefined') {
+        // this verifies that the request is not a JSON-RPC notification
+        if (requestData.id === undefined || requestData.id === null) {
             return;
         }
 
