@@ -67,15 +67,16 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
-                const auth = authMap.get(channelId);
-                const user = auth.user;
+                const auth = authMap.get(channelId) || {};
 
                 pipeMap.delete(channelId);
                 authMap.delete(channelId);
 
+                const user = auth.user;
                 if (user) {
                     await this._notifyAboutOffline({ user, channelId });
                 }
+
                 break;
         }
     }
