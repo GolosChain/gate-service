@@ -125,7 +125,7 @@ class Broker extends BasicService {
                         channelId,
                     });
                     if (response.error) {
-                        throw error;
+                        break;
                     }
                     this._authMapping.set(channelId, response.result);
                     break;
