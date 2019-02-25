@@ -187,15 +187,11 @@ class FrontendGate extends BasicService {
     }
 
     _deserializeMessage(message) {
-        let data;
-
         try {
-            data = JSON.parse(message);
+            return JSON.parse(message) || {};
         } catch (error) {
             return { error };
         }
-
-        return data;
     }
 
     _noop() {
