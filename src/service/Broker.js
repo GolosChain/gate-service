@@ -67,15 +67,16 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
-                const auth = authMap.get(channelId);
-                const user = auth.user;
+                const auth = authMap.get(channelId) || {};
 
                 pipeMap.delete(channelId);
                 authMap.delete(channelId);
 
+                const user = auth.user;
                 if (user) {
                     await this._notifyAboutOffline({ user, channelId });
                 }
+
                 break;
         }
     }
@@ -124,7 +125,7 @@ class Broker extends BasicService {
                         channelId,
                     });
                     if (response.error) {
-                        throw error;
+                        break;
                     }
                     this._authMapping.set(channelId, response.result);
                     break;
@@ -153,7 +154,7 @@ class Broker extends BasicService {
     _makeTranslateToServiceData({ channelId, clientRequestIp }, data) {
         return {
             _frontendGate: true,
-            auth: this._authMapping.get(channelId),
+            auth: this._authMapping.get(channelId) || {},
             routing: {
                 requestId: data.id,
                 channelId,

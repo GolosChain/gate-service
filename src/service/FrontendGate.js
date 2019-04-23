@@ -111,6 +111,11 @@ class FrontendGate extends BasicService {
     _handleMessage(socket, clientRequestIp, message) {
         const requestData = this._deserializeMessage(message);
 
+        // this verifies that the request is not a JSON-RPC notification
+        if (requestData.id === undefined || requestData.id === null) {
+            return;
+        }
+
         if (requestData.error) {
             this._handleConnectionError(socket, requestData, clientRequestIp);
         } else {
@@ -182,15 +187,11 @@ class FrontendGate extends BasicService {
     }
 
     _deserializeMessage(message) {
-        let data;
-
         try {
-            data = JSON.parse(message);
+            return JSON.parse(message) || {};
         } catch (error) {
             return { error };
         }
-
-        return data;
     }
 
     _noop() {
