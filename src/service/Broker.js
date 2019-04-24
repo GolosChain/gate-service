@@ -52,7 +52,7 @@ class Broker extends BasicService {
 
         switch (event) {
             case 'open':
-                pipeMap.set(channelId, pipeMap);
+                pipeMap.set(channelId, pipe);
                 const { secret } = await this._innerGate.callService(
                     'auth',
                     'auth.generateSecret',
