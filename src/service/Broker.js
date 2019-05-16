@@ -125,11 +125,9 @@ class Broker extends BasicService {
                         ...data.params,
                         channelId,
                     });
-                    if (response.error) {
-                        pipe(response.error);
-                        break;
+                    if (response.result) {
+                        this._authMapping.set(channelId, response.result);
                     }
-                    this._authMapping.set(channelId, response.result);
                     break;
                 default: {
                     const translate = this._makeTranslateToServiceData(
