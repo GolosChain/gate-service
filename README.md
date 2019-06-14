@@ -61,23 +61,6 @@ _При этом приватный ключ не передается по се
 
 Описание API общения с инфраструктурой содержится в документации FACADE-SERVICE т.к. именно он отвечает за роутинг.
 
-Список методов, доступ которым предоставляется анонимно:
-
--   registration.getState
--   registration.firstStep
--   registration.verify
--   registration.toBlockChain
--   registration.changePhone
--   registration.resendSmsCode
--   registration.subscribeOnSmsGet
--   rates.getActual
--   rates.getHistorical
--   rates.getHistoricalMulti
--   content.getComments
--   content.getPost
--   content.getFeed
--   content.getProfile
-
 ##### Описание API самого микросервиса
 
 Доступное клиентам извне
