@@ -113,37 +113,22 @@ class Broker extends BasicService {
     async _handleClient({ channelId, clientRequestIp }, data, pipe) {
         try {
             let response = {};
-            let isProcessed = false;
 
-            if (!env.GLS_DISABLE_AUTH) {
-                switch (data.method) {
-                    case 'auth.generateSecret':
-                        response = await this._innerGate.sendTo('auth', data.method, {
-                            ...data.params,
-                            channelId,
-                        });
-                        isProcessed = true;
-                        break;
+            if (data.method === 'auth.generateSecret' && !env.GLS_DISABLE_AUTH) {
+                response = await this._innerGate.sendTo('auth', data.method, {
+                    ...data.params,
+                    channelId,
+                });
+            } else if (data.method === 'auth.authorize' && !env.GLS_DISABLE_AUTH) {
+                response = await this._innerGate.sendTo('auth', data.method, {
+                    ...data.params,
+                    channelId,
+                });
 
-                    case 'auth.authorize':
-                        response = await this._innerGate.sendTo('auth', data.method, {
-                            ...data.params,
-                            channelId,
-                        });
-
-                        if (response.result) {
-                            this._authMapping.set(channelId, response.result);
-                        }
-
-                        isProcessed = true;
-                        break;
-
-                    default:
-                    // Do nothing
+                if (response.result) {
+                    this._authMapping.set(channelId, response.result);
                 }
-            }
-
-            if (!isProcessed) {
+            } else {
                 const translate = this._makeTranslateToServiceData(
                     { channelId, clientRequestIp },
                     data
