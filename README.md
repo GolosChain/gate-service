@@ -45,6 +45,8 @@
 
 ### Авторизация
 
+_(Авторизация может быть отключена с помощью переменной окружения: GLS_DISABLE_AUTH)_
+
 При подключении сервер сам присылает секрет на подпись в случае, если необходима авторизация при помощи сообщения в веб-сокете.
 
 Далее необходимо отправить на сервер запрос с JSON-RPC методом `auth.authorize` и тремя параметрами - `user`, `secret` и `sign`.
@@ -58,23 +60,6 @@ _При этом приватный ключ не передается по се
 ##### Описание API инфрастуктуры
 
 Описание API общения с инфраструктурой содержится в документации FACADE-SERVICE т.к. именно он отвечает за роутинг.
-
-Список методов, доступ которым предоставляется анонимно:
-
--   registration.getState
--   registration.firstStep
--   registration.verify
--   registration.toBlockChain
--   registration.changePhone
--   registration.resendSmsCode
--   registration.subscribeOnSmsGet
--   rates.getActual
--   rates.getHistorical
--   rates.getHistoricalMulti
--   content.getComments
--   content.getPost
--   content.getFeed
--   content.getProfile
 
 ##### Описание API самого микросервиса
 
@@ -158,6 +143,8 @@ _При этом приватный ключ не передается по се
 
 -   `GLS_FRONTEND_GATE_TIMEOUT_FOR_CLIENT` - время, через которе клиент, подключенный по веб-сокету, будет отключен если он не отвечает на пинг запросы или от него не приходят новые входящие запросы.  
     Дефолтное значение - `60000` (1 минута)
+
+-   `GLS_DISABLE_AUTH` - отключение методов авторизации.
 
 ### Запуск
 
