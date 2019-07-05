@@ -1,8 +1,7 @@
 const R = require('ramda');
 const jayson = require('jayson');
 const core = require('gls-core-service');
-const logger = core.utils.Logger;
-const stats = core.utils.statsClient;
+const { Logger } = core.utils;
 const BasicService = core.services.Basic;
 const RpcObject = core.utils.RpcObject;
 const env = require('../env');
@@ -52,17 +51,20 @@ class Broker extends BasicService {
 
         switch (event) {
             case 'open':
-                const { secret } = await this._innerGate.callService(
-                    'auth',
-                    'auth.generateSecret',
-                    {
-                        channelId,
-                    }
-                );
+                pipeMap.set(channelId, pipe);
 
-                const request = this._makeAuthRequestObject(secret);
+                if (!env.GLS_DISABLE_AUTH) {
+                    const { secret } = await this._innerGate.callService(
+                        'auth',
+                        'auth.generateSecret',
+                        {
+                            channelId,
+                        }
+                    );
 
-                pipe(request);
+                    const request = this._makeAuthRequestObject(secret);
+                    pipe(request);
+                }
                 break;
 
             case 'close':
@@ -111,41 +113,34 @@ class Broker extends BasicService {
         try {
             let response = {};
 
-            switch (data.method) {
-                case 'auth.generateSecret':
-                    response = await this._innerGate.sendTo('auth', data.method, {
-                        ...data.params,
-                        channelId,
-                    });
-                    break;
+            if (data.method === 'auth.generateSecret' && !env.GLS_DISABLE_AUTH) {
+                response = await this._innerGate.sendTo('auth', data.method, {
+                    ...data.params,
+                    channelId,
+                });
+            } else if (data.method === 'auth.authorize' && !env.GLS_DISABLE_AUTH) {
+                response = await this._innerGate.sendTo('auth', data.method, {
+                    ...data.params,
+                    channelId,
+                });
 
-                case 'auth.authorize':
-                    response = await this._innerGate.sendTo('auth', data.method, {
-                        ...data.params,
-                        channelId,
-                    });
-                    if (response.error) {
-                        break;
-                    }
+                if (response.result) {
                     this._authMapping.set(channelId, response.result);
-                    break;
-                default: {
-                    const translate = this._makeTranslateToServiceData(
-                        { channelId, clientRequestIp },
-                        data
-                    );
-
-                    response = await this._innerGate.sendTo('facade', data.method, translate);
-                    break;
                 }
+            } else {
+                const translate = this._makeTranslateToServiceData(
+                    { channelId, clientRequestIp },
+                    data
+                );
+
+                response = await this._innerGate.sendTo('facade', data.method, translate);
             }
 
             response.id = data.id;
 
             pipe(response);
         } catch (error) {
-            stats.increment(`pass_data_error`);
-            logger.error(`Fail to pass data from client to facade - ${error}`);
+            Logger.error('Fail to pass data from client to facade:', error);
 
             pipe(RpcObject.error(1104, 'Fail to pass data from client to facade'));
         }

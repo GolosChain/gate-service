@@ -2,7 +2,6 @@ const WebSocket = require('ws');
 const uuid = require('uuid');
 const core = require('gls-core-service');
 const logger = core.utils.Logger;
-const stats = core.utils.statsClient;
 const RpcObject = core.utils.RpcObject;
 const BasicService = core.services.Basic;
 const env = require('../env');
@@ -30,7 +29,6 @@ class FrontendGate extends BasicService {
         this._server.on('connection', this._handleConnection.bind(this));
         this._makeBrokenDropper();
 
-        stats.timing('make_gate_server', new Date() - timer);
         logger.info(`Frontend Gate listening at ${port}`);
     }
 
@@ -144,7 +142,6 @@ class FrontendGate extends BasicService {
                     // do noting, just notify or pass
                 }
             );
-            stats.increment('frontend_gate_internal_server_error');
         });
     }
 
@@ -157,7 +154,6 @@ class FrontendGate extends BasicService {
     }
 
     _handleConnectionError(socket, data, from) {
-        stats.increment('frontend_gate_connection_error');
         logger.error(`Frontend Gate connection error [${from}] - ${data.error}`);
     }
 
@@ -174,7 +170,6 @@ class FrontendGate extends BasicService {
         try {
             result = JSON.stringify(data);
         } catch (error) {
-            stats.increment('frontend_gate_serialization_error');
             logger.error(`Frontend Gate serialization error - ${error}`);
 
             let errorData = RpcObject.error(1108, 'Internal server error on serialize message');
