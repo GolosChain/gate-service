@@ -2,7 +2,6 @@ const R = require('ramda');
 const jayson = require('jayson');
 const core = require('gls-core-service');
 const { Logger } = core.utils;
-const stats = core.utils.statsClient;
 const BasicService = core.services.Basic;
 const RpcObject = core.utils.RpcObject;
 const env = require('../env');
@@ -141,7 +140,6 @@ class Broker extends BasicService {
 
             pipe(response);
         } catch (error) {
-            stats.increment('pass_data_error');
             Logger.error('Fail to pass data from client to facade:', error);
 
             pipe(RpcObject.error(1104, 'Fail to pass data from client to facade'));
