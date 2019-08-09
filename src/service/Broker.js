@@ -46,12 +46,9 @@ class Broker extends BasicService {
     }
 
     async _handleFrontendEvent(channelId, event, pipe) {
-        const pipeMap = this._pipeMapping;
-        const authMap = this._authMapping;
-
         switch (event) {
             case 'open':
-                pipeMap.set(channelId, pipe);
+                this._pipeMapping.set(channelId, pipe);
 
                 if (!env.GLS_DISABLE_AUTH) {
                     const { secret } = await this._innerGate.callService(
@@ -69,17 +66,21 @@ class Broker extends BasicService {
 
             case 'close':
             case 'error':
-                const auth = authMap.get(channelId) || {};
-
-                pipeMap.delete(channelId);
-                authMap.delete(channelId);
-
-                const user = auth.user;
-                if (user) {
-                    await this._notifyAboutOffline({ user, channelId });
-                }
+                await this._clientOffline({ channelId });
 
                 break;
+        }
+    }
+
+    async _clientOffline({ channelId }) {
+        const auth = this._authMapping.get(channelId) || {};
+
+        this._pipeMapping.delete(channelId);
+        this._authMapping.delete(channelId);
+
+        const user = auth.user;
+        if (user) {
+            await this._notifyAboutOffline({ user, channelId });
         }
     }
 
@@ -89,6 +90,10 @@ class Broker extends BasicService {
         if (parsedData.error) {
             pipe(parsedData);
             return;
+        }
+
+        if (data.method === 'auth.logout') {
+            return await this._clientOffline({ channelId });
         }
 
         await this._handleClient({ channelId, clientRequestIp }, data, pipe);

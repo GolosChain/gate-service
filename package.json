@@ -13,8 +13,7 @@
     "jayson": "^3.0.2",
     "ramda": "^0.25.0",
     "randomstring": "^1.1.5",
-    "uuid": "^3.3.2",
-    "ws": "^5.2.2"
+    "uuid": "^3.3.2"
   },
   "prettier": {
     "singleQuote": true,
@@ -33,5 +32,8 @@
         }
       }
     ]
+  },
+  "devDependencies": {
+    "prettier": "^1.18.2"
   }
 }
