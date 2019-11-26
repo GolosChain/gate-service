@@ -13,6 +13,7 @@ class FrontendGate extends BasicService {
         this._server = null;
         this._pipeMapping = new Map(); // socket -> uuid
         this._deadMapping = new Map(); // socket -> boolean
+        this._clientInfoMapping = new Map(); // socket -> boolean
         this._brokenDropperIntervalId = null;
     }
 
@@ -44,11 +45,14 @@ class FrontendGate extends BasicService {
         const clientRequestIp = this._getRequestIp(request);
         const pipeMap = this._pipeMapping;
         const deadMap = this._deadMapping;
+        const clientInfoMap = this._clientInfoMapping;
 
         logger.log(`Frontend Gate connection open - ${clientRequestIp}`);
 
         pipeMap.set(socket, uuid());
         deadMap.set(socket, false);
+        clientInfoMap.set(socket, this._tryExtractClientInfo(request));
+
         this._notifyCallback(socket, clientRequestIp, 'open');
 
         socket.on('message', message => {
@@ -62,6 +66,7 @@ class FrontendGate extends BasicService {
             this._notifyCallback(socket, clientRequestIp, 'close');
             pipeMap.delete(socket);
             deadMap.delete(socket);
+            clientInfoMap.delete(socket);
         });
 
         socket.on('error', error => {
@@ -72,11 +77,17 @@ class FrontendGate extends BasicService {
             this._notifyCallback(socket, clientRequestIp, 'error');
             pipeMap.delete(socket);
             deadMap.delete(socket);
+            clientInfoMap.delete(socket);
         });
 
         socket.on('pong', () => {
             deadMap.set(socket, false);
         });
+    }
+
+    _tryExtractClientInfo(req) {
+        const { platform, deviceType, clientType, version } = req.params;
+        return { platform, deviceType, clientType, version };
     }
 
     _getRequestIp(request) {
@@ -123,8 +134,9 @@ class FrontendGate extends BasicService {
 
     _notifyCallback(socket, clientRequestIp, requestData) {
         const channelId = this._pipeMapping.get(socket);
+        const clientInfo = this._clientInfoMapping.get(socket);
 
-        this._callback({ channelId, clientRequestIp }, requestData, responseData => {
+        this._callback({ channelId, clientRequestIp, clientInfo }, requestData, responseData => {
             if (!this._pipeMapping.get(socket)) {
                 logger.log('Client close connection before get response.');
                 return;
